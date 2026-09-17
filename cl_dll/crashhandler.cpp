@@ -227,6 +227,18 @@ static int tryReadSymtab(const char *so_path,
 		if (shdr[i].sh_type == SHT_STRTAB && strcmp(name, ".strtab") == 0) strtab_sh = &shdr[i];
 	}
 
+	// Release builds strip local symbols, leaving only the dynamic symbol
+	// table — fall back to .dynsym/.dynstr so we can still name exported
+	// functions and PLT callers. (Best-effort; blank slots stay anonymous.)
+	if (!symtab_sh || !strtab_sh) {
+		for (size_t i = 0; i < shnum; i++) {
+			if (shdr[i].sh_name >= shstr->sh_size) continue;
+			const char *name = shstrtab + shdr[i].sh_name;
+			if (shdr[i].sh_type == SHT_DYNSYM) symtab_sh = &shdr[i];
+			if (shdr[i].sh_type == SHT_STRTAB && strcmp(name, ".dynstr") == 0) strtab_sh = &shdr[i];
+		}
+	}
+
 	if (!symtab_sh || !strtab_sh) {
 		munmap(map, size);
 		return 0;
@@ -306,7 +318,7 @@ static void dumpMaps(int fd, unsigned long addr, unsigned long addr30, unsigned 
 			char *eol = line;
 			while (eol < end && *eol != '\n' && *eol != '\0') eol++;
 
-			if (eol - line > 6 && line[3] == 'x') {
+			if (eol - line > 6 && line[2] == 'x') {
 				write(fd, line, eol - line);
 				write(fd, "\n", 1);
 
@@ -361,13 +373,13 @@ static int findMapsEntry(unsigned long addr, MapsEntry *out) {
 			char *p = line;
 
 			// Parse start
-			while (p < eol && *p >= '0' && *p <= '9') {
+			while (p < eol && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))) {
 				start = start * 16 + (*p >= 'a' ? *p - 'a' + 10 : *p >= 'A' ? *p - 'A' + 10 : *p - '0');
 				p++;
 			}
 			if (p < eol && *p == '-') p++;
 			// Parse end
-			while (p < eol && *p >= '0' && *p <= '9') {
+			while (p < eol && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))) {
 				end = end * 16 + (*p >= 'a' ? *p - 'a' + 10 : *p >= 'A' ? *p - 'A' + 10 : *p - '0');
 				p++;
 			}
@@ -375,7 +387,7 @@ static int findMapsEntry(unsigned long addr, MapsEntry *out) {
 			while (p < eol && *p != ' ') p++;
 			if (p < eol) p++;
 			// Parse offset
-			while (p < eol && *p >= '0' && *p <= '9') {
+			while (p < eol && ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))) {
 				offset = offset * 16 + (*p >= 'a' ? *p - 'a' + 10 : *p >= 'A' ? *p - 'A' + 10 : *p - '0');
 				p++;
 			}
@@ -652,6 +664,18 @@ static void crashHandler(int sig, siginfo_t *info, void *ucontext) {
 		safeStrcat(line, hex, sizeof(line));
 		safeStrcat(line, "\n", sizeof(line));
 		writeStr(fd, line);
+
+		// Attribute the faulting address to a module/symbol when possible: the
+		// exact address matters less than WHERE it landed.
+		char resolved[512];
+		resolved[0] = '\0';
+		resolveAddressEnhanced(resolved, sizeof(resolved), info->si_addr, fd);
+		if (resolved[0]) {
+			char fa[560] = "    in ";
+			safeStrcat(fa, resolved, sizeof(fa));
+			safeStrcat(fa, "\n", sizeof(fa));
+			writeStr(fd, fa);
+		}
 	}
 
 	// PID/TID
