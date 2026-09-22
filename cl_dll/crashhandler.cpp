@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/syscall.h>
 #include <android/log.h>
 
 #include "crashhandler.h"
@@ -31,6 +32,17 @@ static size_t safeStrlen(const char *str, size_t maxLen) {
 	size_t len = 0;
 	while (len < maxLen && str[len]) len++;
 	return len;
+}
+
+static const char *safeStrstr(const char *haystack, size_t haystackLen, const char *needle) {
+	if (!needle || !needle[0]) return haystack;
+	size_t nlen = safeStrlen(needle, 256);
+	for (size_t i = 0; i + nlen <= haystackLen && haystack[i]; i++) {
+		size_t j = 0;
+		while (j < nlen && haystack[i + j] == needle[j]) j++;
+		if (j == nlen) return haystack + i;
+	}
+	return NULL;
 }
 
 static void safeStrcat(char *dst, const char *src, size_t dstSize) {
@@ -98,12 +110,14 @@ static int writeStr(int fd, const char *s) {
 // Uses the process_vm_readv syscall, which faults without raising SIGSEGV, so
 // a garbage frame pointer can never crash the handler mid-backtrace and leave
 // a truncated crash.log.
+// NOTE: called via syscall() instead of the libc wrapper so this still builds
+// and loads on minSdk 21 (the wrapper is only declared for API 23+).
 static int isMapped_ro(unsigned long addr) {
 	if (addr < 0x10000) return 0;
 	unsigned long dummy = 0;
 	struct iovec local = { &dummy, sizeof(dummy) };
 	struct iovec remote = { (void *)addr, sizeof(dummy) };
-	return process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == (ssize_t)sizeof(dummy);
+	return syscall(__NR_process_vm_readv, getpid(), &local, 1, &remote, 1, 0) == (ssize_t)sizeof(dummy);
 }
 
 static int getBacktrace(void **buffer, int maxFrames, void *ucontext) {
@@ -422,7 +436,8 @@ static int findMapsEntry(unsigned long addr, MapsEntry *out) {
 }
 
 // Resolve address using maps + .symtab from disk (all async-signal-safe)
-static void resolveAddressEnhanced(char *buf, size_t bufSize, void *addr, int log_fd) {
+// If hint_fd >= 0, also writes addr2line command to that fd.
+static void resolveAddressEnhanced(char *buf, size_t bufSize, void *addr, int hint_fd) {
 	unsigned long target = (unsigned long)addr;
 	buf[0] = '\0';
 
@@ -467,8 +482,8 @@ static void resolveAddressEnhanced(char *buf, size_t bufSize, void *addr, int lo
 		}
 	}
 
-	// Write addr2line hint
-	if (maps.path[0]) {
+	// Write addr2line hint to crash log
+	if (maps.path[0] && hint_fd >= 0) {
 		char hint[512];
 		hint[0] = '\0';
 		safeStrcat(hint, "  addr2line -e ", sizeof(hint));
@@ -476,7 +491,7 @@ static void resolveAddressEnhanced(char *buf, size_t bufSize, void *addr, int lo
 		safeStrcat(hint, " -f 0x", sizeof(hint));
 		safeStrcat(hint, hex, sizeof(hint));
 		safeStrcat(hint, "\n", sizeof(hint));
-		write(log_fd, hint, strlen(hint));
+		write(hint_fd, hint, strlen(hint));
 	}
 }
 
@@ -664,18 +679,6 @@ static void crashHandler(int sig, siginfo_t *info, void *ucontext) {
 		safeStrcat(line, hex, sizeof(line));
 		safeStrcat(line, "\n", sizeof(line));
 		writeStr(fd, line);
-
-		// Attribute the faulting address to a module/symbol when possible: the
-		// exact address matters less than WHERE it landed.
-		char resolved[512];
-		resolved[0] = '\0';
-		resolveAddressEnhanced(resolved, sizeof(resolved), info->si_addr, fd);
-		if (resolved[0]) {
-			char fa[560] = "    in ";
-			safeStrcat(fa, resolved, sizeof(fa));
-			safeStrcat(fa, "\n", sizeof(fa));
-			writeStr(fd, fa);
-		}
 	}
 
 	// PID/TID
@@ -705,6 +708,8 @@ static void crashHandler(int sig, siginfo_t *info, void *ucontext) {
 		x30v = mctx->arm_lr;
 	}
 #elif defined(__x86_64__)
+	mcontext_t *mctx = ucontext ? &((ucontext_t *)ucontext)->uc_mcontext : NULL;
+#elif defined(__i386__)
 	mcontext_t *mctx = ucontext ? &((ucontext_t *)ucontext)->uc_mcontext : NULL;
 #endif
 
@@ -817,10 +822,125 @@ static void crashHandler(int sig, siginfo_t *info, void *ucontext) {
 				writeStr(fd, line);
 			}
 		}
+#elif defined(__i386__)
+		{
+			const char *regNames[] = {
+				"eax","ebx","ecx","edx","esi","edi","ebp","esp",
+				"eip","eflags"
+			};
+			unsigned long regVals[] = {
+				mctx->gregs[REG_EAX], mctx->gregs[REG_EBX],
+				mctx->gregs[REG_ECX], mctx->gregs[REG_EDX],
+				mctx->gregs[REG_ESI], mctx->gregs[REG_EDI],
+				mctx->gregs[REG_EBP], mctx->gregs[REG_ESP],
+				mctx->gregs[REG_EIP], mctx->gregs[REG_EFL]
+			};
+			for (int i = 0; i < 10; i++) {
+				char line[64] = "  ";
+				safeStrcat(line, regNames[i], sizeof(line));
+				safeStrcat(line, " = 0x", sizeof(line));
+				char hex[20];
+				safeIntToHex(hex, regVals[i], sizeof(hex));
+				safeStrcat(line, hex, sizeof(line));
+				safeStrcat(line, "\n", sizeof(line));
+				writeStr(fd, line);
+			}
+		}
 #endif
 	}
 
 	dumpMaps(fd, (unsigned long)info->si_addr, x30v, x16v);
+
+	// ─── CRASH RESOLVED ─────────────────────────────────────────────────
+	// This section is designed for quick analysis without any tools.
+	// Format: [library.so+0xfileoffset] FunctionName+0xsuboffset
+	// Works even on stripped binaries via .dynsym fallback.
+	{
+		char out[4096];
+		out[0] = '\0';
+
+		safeStrcat(out, "\n=== CRASH RESOLVED ===\n", sizeof(out));
+
+		// Fault address
+		if (info && info->si_addr) {
+			char fault_resolved[512] = {0};
+			resolveAddressEnhanced(fault_resolved, sizeof(fault_resolved), info->si_addr, -1);
+
+			safeStrcat(out, "FAULT: ", sizeof(out));
+			if (fault_resolved[0]) {
+				safeStrcat(out, fault_resolved, sizeof(out));
+			} else {
+				char hex[20];
+				safeIntToHex(hex, (unsigned long)info->si_addr, sizeof(hex));
+				safeStrcat(out, "0x", sizeof(out));
+				safeStrcat(out, hex, sizeof(out));
+				safeStrcat(out, " (no symbol)", sizeof(out));
+			}
+			safeStrcat(out, "\n", sizeof(out));
+		}
+
+		// Backtrace with smart filtering
+		int printed = 0;
+		for (int i = 0; i < frameCount && printed < 12; i++) {
+			char resolved[512] = {0};
+			resolveAddressEnhanced(resolved, sizeof(resolved), frames[i], -1);
+			if (!resolved[0]) continue;
+
+			// Skip crash handler internals and libc
+			if (safeStrstr(resolved, sizeof(resolved), "crashHandler") ||
+			    safeStrstr(resolved, sizeof(resolved), "CrashHandler") ||
+			    safeStrstr(resolved, sizeof(resolved), "resolveAddress") ||
+			    safeStrstr(resolved, sizeof(resolved), "findSymtab") ||
+			    safeStrstr(resolved, sizeof(resolved), "tryReadSymtab") ||
+			    safeStrstr(resolved, sizeof(resolved), "isMapped_ro") ||
+			    safeStrstr(resolved, sizeof(resolved), "getBacktrace") ||
+			    safeStrstr(resolved, sizeof(resolved), "openCrashLog") ||
+			    safeStrstr(resolved, sizeof(resolved), "writeStr") ||
+			    safeStrstr(resolved, sizeof(resolved), "dumpMaps") ||
+			    safeStrstr(resolved, sizeof(resolved), "libc.so") ||
+			    safeStrstr(resolved, sizeof(resolved), "liblog.so") ||
+			    safeStrstr(resolved, sizeof(resolved), "ld-android.so") ||
+			    safeStrstr(resolved, sizeof(resolved), "libdl.so")) {
+				continue;
+			}
+
+			char num[16];
+			safeIntToStr(num, printed, sizeof(num));
+			safeStrcat(out, "  #", sizeof(out));
+			safeStrcat(out, num, sizeof(out));
+			safeStrcat(out, " ", sizeof(out));
+			safeStrcat(out, resolved, sizeof(out));
+			safeStrcat(out, "\n", sizeof(out));
+			printed++;
+		}
+
+		// If no frames survived filtering, show raw addresses
+		if (printed == 0) {
+			for (int i = 0; i < frameCount && printed < 5; i++) {
+				char resolved[512] = {0};
+				resolveAddressEnhanced(resolved, sizeof(resolved), frames[i], -1);
+				if (!resolved[0]) continue;
+				if (safeStrstr(resolved, sizeof(resolved), "libc.so") ||
+				    safeStrstr(resolved, sizeof(resolved), "liblog.so")) continue;
+
+				char hex[20];
+				safeIntToHex(hex, (unsigned long)frames[i], sizeof(hex));
+				char num[16];
+				safeIntToStr(num, printed, sizeof(num));
+				safeStrcat(out, "  #", sizeof(out));
+				safeStrcat(out, num, sizeof(out));
+				safeStrcat(out, " 0x", sizeof(out));
+				safeStrcat(out, hex, sizeof(out));
+				safeStrcat(out, " ", sizeof(out));
+				safeStrcat(out, resolved, sizeof(out));
+				safeStrcat(out, "\n", sizeof(out));
+				printed++;
+			}
+		}
+
+		safeStrcat(out, "=== END RESOLVED ===\n", sizeof(out));
+		writeStr(fd, out);
+	}
 
 	writeStr(fd, "=== END CRASH ===\n");
 	close(fd);
