@@ -445,10 +445,10 @@ int DLLEXPORT HUD_GetRenderInterface( int version, render_api_t *renderfuncs, re
 	// *callback = renderInterface;
 
 	// we have here a Host_Error, so check Xash for version
-	if( g_iXash < MIN_XASH_VERSION )
+	/* if( g_iXash < MIN_XASH_VERSION )
 	{
 		gRenderAPI.Host_Error("Xash3D FWGS version check failed!\nPlease update your Xash3D FWGS!\n");
-	}
+	} */
 
 	return true;
 }
