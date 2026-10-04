@@ -20,6 +20,18 @@ GNU General Public License for more details.
 #include "gameinfo.h"
 #include "wrect.h"
 
+// The printf-like callbacks below are annotated with `_format( argno )`. The
+// engine build passes that in as a compiler flag; anything else (mainui built
+// standalone, MSVC) has to provide it, because MSVC reads the unknown token as
+// an override specifier and rejects the declaration.
+#ifndef _format
+	#if defined( __GNUC__ ) || defined( __clang__ )
+		#define _format( S ) __attribute__(( format( printf, S, ( S ) + 1 ) ))
+	#else
+		#define _format( S )
+	#endif
+#endif
+
 // a macro for mainui_cpp, indicating that mainui should be compiled for
 // Xash3D 1.0 interface
 #define NEW_ENGINE_INTERFACE
