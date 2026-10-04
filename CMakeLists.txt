@@ -42,6 +42,19 @@ check_symbol_exists(strlcpy string.h HAVE_STRLCPY)
 check_symbol_exists(strlcat string.h HAVE_STRLCAT)
 
 if(BUILD_CLIENT)
+# The client includes mainui headers (utlstring.h -> miniutl.h), and mainui_cpp
+# ships a MiniUTL submodule that typedefs int64 as long long while bionic's
+# int64_t is long: every translation unit that sees both fails with "typedef
+# redefinition with different types". 3rdparty/miniutl is the copy the client
+# itself builds against, so sync mainui's copy from it rather than patching
+# either file. Has to happen for every target combination, because the client
+# alone is enough to hit it, so it stays outside the BUILD_MAINUI block.
+# android/ci/build-amxx.sh does the same copy for the nexora native build.
+file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/miniutl/"
+	DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mainui_cpp/miniutl"
+	PATTERN ".git" EXCLUDE)
+message(STATUS "miniutl: mainui copy synced with 3rdparty/miniutl")
+
 	add_subdirectory(cl_dll)
 endif()
 
@@ -88,18 +101,6 @@ if(BUILD_MAINUI)
 	include_directories("${CMAKE_CURRENT_SOURCE_DIR}/public")
 	add_definitions(-include "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mainui_config.h")
 	set(MAINUI_RENDER_PICBUTTON_TEXT ON)
-
-	# mainui_cpp ships its own MiniUTL submodule whose miniutl.h typedefs int64
-	# as long long, while bionic's int64_t is long - so every client
-	# translation unit that pulls in a mainui header fails with "typedef
-	# redefinition with different types". 3rdparty/miniutl is the copy the
-	# client itself is built against, so sync mainui's copy from it instead of
-	# patching either file. (android/ci/build-amxx.sh does the same copy for the
-	# nexora native build; doing it here covers the app build as well.)
-	file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/miniutl/"
-		DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mainui_cpp/miniutl"
-		PATTERN ".git" EXCLUDE)
-	message(STATUS "miniutl: mainui copy synced with 3rdparty/miniutl")
 
 	add_subdirectory(3rdparty/mainui_cpp)
 	# mainui's CMakeLists does not list the MiniUTL sources it links against
