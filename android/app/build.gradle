@@ -118,6 +118,18 @@ android {
 	}
 }
 
+// The engine reads the mod assets from the *client* package: XashActivity
+// resolves them with getResourcesForApplication(getCallingPackage()), so the
+// client APK - not the engine APK - has to ship the extras, the yapb configs
+// and the bot graphs that CMake stages into src/main/assets.
+// CMake stages them while configuring, but nothing ordered Gradle's asset merge
+// after externalNativeBuild, and the APK was going out with an empty assets/
+// (no touch.cfg, no yapb cfg, no bot graphs), which the engine needs to start.
+// Depending on the configure step is enough and costs nothing.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+	dependsOn(tasks.matching { it.name.startsWith("configureCMake") })
+}
+
 static def getBuildNum() {
 	LocalDateTime now = LocalDateTime.now()
 	LocalDateTime releaseDate = LocalDateTime.of(2015, Month.OCTOBER, 29, 0, 0, 0)
