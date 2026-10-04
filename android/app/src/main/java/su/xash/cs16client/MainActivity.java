@@ -86,8 +86,8 @@ public class MainActivity extends Activity {
     }
 
     private void showCrashDialog() {
-        String crashText = readCrashLog();
-        if (crashText == null) crashText = "(crash log unreadable)";
+        String logText = readCrashLog();
+        final String crashText = logText != null ? logText : "(crash log unreadable)";
 
         TextView textView = new TextView(this);
         textView.setText(crashText);
