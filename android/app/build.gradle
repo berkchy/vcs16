@@ -13,7 +13,12 @@ android {
 		applicationId = "su.xash.cs16client"
 		versionName = "1.35-" + getGitHash()
 		versionCode = getBuildNum()
-		minSdk = 21
+		// The native libraries are built against API 24 (see the nexora native
+		// build), and cl_dll's crash handler needs process_vm_readv, which
+		// bionic only declares from API 23 on. Building the app against 21 left
+		// crashhandler.cpp without that declaration and the client never
+		// compiled, so match the level the rest of the stack already needs.
+		minSdk = 24
 		targetSdk = 36
 	}
 
