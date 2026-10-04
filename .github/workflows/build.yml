@@ -66,14 +66,16 @@ jobs:
         run: |
           # The engine loads the mod assets from the client package, so an APK
           # without assets/ starts and then dies on the first missing file.
-          COUNT=$(unzip -l CS16Client-Android.apk | grep -c ' assets/' || true)
+          APK=android/CS16Client-Android.apk
+          test -f "$APK" || { echo "::error::$APK not found"; exit 1; }
+          COUNT=$(unzip -l "$APK" | grep -c ' assets/' || true)
           echo "asset entries: $COUNT"
           if [ "$COUNT" -lt 10 ]; then
             echo "::error::APK has almost no assets ($COUNT) - the merge ran before CMake staged them"
             exit 1
           fi
           for f in assets/touch.cfg assets/BotProfile.db; do
-            unzip -l CS16Client-Android.apk "$f" | grep -q "$f" || {
+            unzip -l "$APK" "$f" | grep -q "$f" || {
               echo "::error::$f missing from the APK"; exit 1; }
           done
       - name: Upload artifacts
