@@ -29,6 +29,24 @@ android {
 		}
 	}
 
+	defaultConfig {
+		externalNativeBuild {
+			cmake {
+				// Ccache for both compilers.
+				arguments "-DCMAKE_C_COMPILER_LAUNCHER=ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+
+				// The NDK sysroot ships no fontconfig, so mainui_cpp's
+				// pkg_check_modules(FC REQUIRED fontconfig) fails the app build
+				// at configure time. Apple already forces the stb renderer for
+				// the same reason. Kept in defaultConfig because the CI job
+				// assembles the debug variant, which has no build type of its
+				// own to hang these on. This does not affect the nexora native
+				// build, which finds fontconfig on its own runner.
+				arguments "-DMAINUI_USE_STB=ON"
+			}
+		}
+	}
+
 	lint {
 		abortOnError = false
 	}
@@ -72,19 +90,6 @@ android {
 			initWith(getByName("release"))
 			applicationIdSuffix = ".test"
 			signingConfig = signingConfigs.continuous
-
-			externalNativeBuild {
-                cmake {
-                    arguments "-DCMAKE_C_COMPILER_LAUNCHER=ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
-                        // The NDK sysroot has no fontconfig, so mainui_cpp's
-                        // pkg_check_modules(FC REQUIRED fontconfig) always fails
-                        // here. Apple builds already force the stb renderer for
-                        // the same reason; do it for Android too. This only
-                        // affects the app build, not the nexora native build,
-                        // which finds the host fontconfig on its runner.
-                        "-DMAINUI_USE_STB=ON"
-                }
-			}
 		}
 	}
 
