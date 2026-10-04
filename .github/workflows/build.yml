@@ -251,6 +251,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs: [ android, windows, linux, psvita, macos ]
     # A manual run publishes whatever it produced, so a targeted Android run
     # still refreshes the rolling release with the client APK the patcher
