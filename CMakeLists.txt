@@ -114,16 +114,17 @@ set(EXTRAS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cs16client-extras")
 set(YAPB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/yapb/cfg")
 
 if(ANDROID)
+	# Gradle merges the extras and the yapb configs straight from their source
+	# directories (see android/app/build.gradle), so nothing has to be staged
+	# into the generated assets dir here except the bot graphs this build
+	# downloaded. Staging the rest meant wiping and re-copying a directory the
+	# asset merge also reads, which is how the APK ended up without any assets.
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/android/app/src/main/assets")
 
-	file(GLOB EXTRAS_FILES "${EXTRAS_DIR}/*")
-	file(GLOB YAPB_FILES "${YAPB_DIR}/*" "${GRAPHS_OUTPUT}/*")
-
-	file(REMOVE_RECURSE ${EXTRAS_OUTPUT})
-	file(
-		COPY ${EXTRAS_FILES} ${YAPB_FILES}
-		DESTINATION ${EXTRAS_OUTPUT}
-	)
+	file(GLOB GRAPH_FILES "${GRAPHS_OUTPUT}/*")
+	if (GRAPH_FILES)
+		file(COPY ${GRAPH_FILES} DESTINATION ${EXTRAS_OUTPUT})
+	endif()
 else()
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/extras.pk3")
 
