@@ -184,8 +184,13 @@ typedef uint16_t uint16;
 typedef int32_t int32;
 typedef uint32_t uint32;
 
-typedef int64_t int64;
-typedef uint64_t uint64;
+// Spell the 64-bit types the way steamtypes.h does outside MSVC. int64_t is
+// long on bionic while steamtypes uses long long, so naming both makes two
+// different typedefs of int64 legal and every client translation unit that
+// includes steamtypes.h as well as utlstring.h fails with "typedef
+// redefinition with different types".
+typedef long long int64;
+typedef unsigned long long uint64;
 #endif
 
 typedef unsigned int uint;

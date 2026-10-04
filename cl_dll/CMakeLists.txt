@@ -61,11 +61,7 @@ include_directories(
 	../3rdparty/mainui_cpp
 	../3rdparty/mainui_cpp/controls
 	../3rdparty/mainui_cpp/menus
-	# mainui_cpp's miniutl typedefs int64 as int64_t while steamtypes.h uses
-	# __int64; on bionic those are different types and every client
-	# translation unit that includes utlstring.h fails. Use the client's own
-	# MiniUTL, which has no such typedefs.
-	../3rdparty/miniutl
+	../3rdparty/mainui_cpp/miniutl
 	particleman)
 
 add_definitions(-DCLIENT_WEAPONS -DCLIENT_DLL -DSTDINT_H=<cstdint>)
