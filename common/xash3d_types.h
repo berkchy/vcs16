@@ -13,6 +13,12 @@
 #endif // _WIN32
 
 #include <sys/types.h> // off_t
+// STDINT_H is normally passed by the build (-DSTDINT_H=<cstdint>), but the
+// mainui subproject does not always get it: without this the include below
+// expands to nothing and MSVC stops with C2006/C1083.
+#ifndef STDINT_H
+	#define STDINT_H <stdint.h>
+#endif
 #include STDINT_H
 #include <assert.h>
 

@@ -15,6 +15,11 @@ GNU General Public License for more details.
 #ifndef UTFLIB_H
 #define UTFLIB_H
 
+// Same shim as common/xash3d_types.h: a build that does not pass STDINT_H
+// would otherwise expand this include to nothing.
+#ifndef STDINT_H
+	#define STDINT_H <stdint.h>
+#endif
 #include STDINT_H
 #include <stddef.h>
 
