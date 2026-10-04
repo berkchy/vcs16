@@ -53,6 +53,15 @@ endif()
 # 	set(MESON_BUILD_TYPE release)
 # endif()
 
+if(BUILD_SERVER AND NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/yapb")
+	# The server library needs the vendored YaPB and ReGameDLL_CS sources, which
+	# are not part of this repository (the Android build supplies them from its
+	# own tree). Without them add_subdirectory() fails and the configure stops
+	# before the client is even considered, so drop to a client-only build.
+	message(STATUS "3rdparty/yapb not present, disabling BUILD_SERVER")
+	set(BUILD_SERVER OFF)
+endif()
+
 if(BUILD_SERVER)
 	# ExternalProject_Add(
 	# 	yapb
@@ -71,6 +80,9 @@ if(BUILD_SERVER)
 endif()
 
 if(BUILD_MAINUI)
+#	mainui still declares an ancient cmake_minimum_required, which modern
+#	CMake refuses outright; this is the value CMake itself suggests.
+	set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 #	set(CS16CLIENT ON)
 	set(XASH_SDK "${CMAKE_CURRENT_SOURCE_DIR}")
 	include_directories("${CMAKE_CURRENT_SOURCE_DIR}/public")
