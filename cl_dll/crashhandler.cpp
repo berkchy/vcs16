@@ -693,19 +693,19 @@ static void crashHandler(int sig, siginfo_t *info, void *ucontext) {
 
 	// Registers + extract key values
 	unsigned long x30v = 0, x16v = 0;
-#if defined(__aarch64__)
+	// Declared before the per-arch blocks: the register dump further down uses
+	// it on every architecture, and declaring it inside them left it undefined
+	// anywhere the arch list did not cover.
 	mcontext_t *mctx = ucontext ? &((ucontext_t *)ucontext)->uc_mcontext : NULL;
+#if defined(__aarch64__)
 	if (mctx) {
 		x30v = mctx->regs[30];
 		x16v = mctx->regs[16];
 	}
 #elif defined(__arm__)
-	mcontext_t *mctx = ucontext ? &((ucontext_t *)ucontext)->uc_mcontext : NULL;
 	if (mctx) {
 		x30v = mctx->arm_lr;
 	}
-#elif defined(__x86_64__)
-	mcontext_t *mctx = ucontext ? &((ucontext_t *)ucontext)->uc_mcontext : NULL;
 #endif
 
 	// Unwind backtrace
