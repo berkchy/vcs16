@@ -75,7 +75,14 @@ android {
 
 			externalNativeBuild {
                 cmake {
-                    arguments "-DCMAKE_C_COMPILER_LAUNCHER=ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+                    arguments "-DCMAKE_C_COMPILER_LAUNCHER=ccache", "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache",
+                        // The NDK sysroot has no fontconfig, so mainui_cpp's
+                        // pkg_check_modules(FC REQUIRED fontconfig) always fails
+                        // here. Apple builds already force the stb renderer for
+                        // the same reason; do it for Android too. This only
+                        // affects the app build, not the nexora native build,
+                        // which finds the host fontconfig on its runner.
+                        "-DMAINUI_USE_STB=ON"
                 }
 			}
 		}
