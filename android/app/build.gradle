@@ -116,7 +116,6 @@ android {
 	buildFeatures {
 		buildConfig = true
 	}
-}
 
 	// The engine resolves the mod assets from the *client* package, so the
 	// client APK has to ship them: touch config, bot profiles, gfx, sounds, the
@@ -132,6 +131,8 @@ android {
 			]
 		}
 	}
+}
+
 
 // The engine reads the mod assets from the *client* package: XashActivity
 // resolves them with getResourcesForApplication(getCallingPackage()), so the
