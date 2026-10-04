@@ -36,6 +36,7 @@
 #include "environment.h"
 
 #include "cl_util.h"
+#include "bhop.h"
 #include "crashhandler.h"
 
 cl_enginefunc_t		gEngfuncs  = { };
@@ -291,6 +292,7 @@ void DLLEXPORT HUD_Init( void )
 
 	LoadMenuInterface();
 	InitInput();
+	BHOP_Init();
 	gHUD.Init();
 	
 	// Initialize menu if it's loaded
