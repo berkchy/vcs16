@@ -114,17 +114,30 @@ set(EXTRAS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cs16client-extras")
 set(YAPB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/yapb/cfg")
 
 if(ANDROID)
-	# Gradle merges the extras and the yapb configs straight from their source
-	# directories (see android/app/build.gradle), so nothing has to be staged
-	# into the generated assets dir here except the bot graphs this build
-	# downloaded. Staging the rest meant wiping and re-copying a directory the
-	# asset merge also reads, which is how the APK ended up without any assets.
+	# The client package's assets are mounted as the cstrike game directory, so
+	# loose extras (25 MB of sounds, two training maps, touch menus) shadow the
+	# real game files: title lookups started answering with "#Game_join" and
+	# mod sounds went missing. Pack them the way the desktop build does, into
+	# extras.pk3, so the engine loads them as an archive layered over the game
+	# directory instead of replacing parts of it.
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/android/app/src/main/assets")
 
-	file(GLOB GRAPH_FILES "${GRAPHS_OUTPUT}/*")
-	if (GRAPH_FILES)
-		file(COPY ${GRAPH_FILES} DESTINATION ${EXTRAS_OUTPUT})
+	file(REMOVE_RECURSE ${EXTRAS_OUTPUT})
+	file(MAKE_DIRECTORY ${EXTRAS_OUTPUT})
+
+	execute_process(
+		COMMAND ${Python_EXECUTABLE}
+		${CMAKE_CURRENT_SOURCE_DIR}/scripts/pack_extras.py
+		${EXTRAS_OUTPUT}/extras.pk3
+		${EXTRAS_DIR}
+		${YAPB_DIR}
+		${GRAPHS_OUTPUT}
+		RESULT_VARIABLE PACK_RESULT
+	)
+	if (NOT PACK_RESULT EQUAL 0)
+		message(FATAL_ERROR "extras.pk3 packaging failed")
 	endif()
+	message(STATUS "extras.pk3: ${EXTRAS_OUTPUT}/extras.pk3")
 else()
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/extras.pk3")
 

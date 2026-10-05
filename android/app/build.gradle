@@ -118,18 +118,11 @@ android {
 	}
 
 	// The engine resolves the mod assets from the *client* package, so the
-	// client APK has to ship them: touch config, bot profiles, gfx, sounds, the
-	// yapb configs and the bot graphs. They are merged straight from their
-	// source directories instead of being staged into src/main/assets by
-	// CMake, which made the result depend on whether the asset merge ran before
-	// or after the CMake configure step.
-	sourceSets {
-		getByName("main") {
-			assets.srcDirs += [
-				file("../../3rdparty/cs16client-extras"),
-				file("../../3rdparty/yapb/cfg"),
-			]
-		}
+	// client APK has to carry them. They go in as extras.pk3 (see CMakeLists):
+	// the assets directory *is* the cstrike game directory once mounted, and
+	// loose copies of the sounds/maps/touch menus shadow the real game files.
+	tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+		dependsOn(tasks.matching { it.name.startsWith("configureCMake") })
 	}
 }
 

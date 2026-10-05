@@ -70,13 +70,18 @@ jobs:
           test -f "$APK" || { echo "::error::$APK not found"; exit 1; }
           COUNT=$(unzip -l "$APK" | grep -c ' assets/' || true)
           echo "asset entries: $COUNT"
-          if [ "$COUNT" -lt 10 ]; then
-            echo "::error::APK has almost no assets ($COUNT) - the merge ran before CMake staged them"
-            exit 1
-          fi
-          for f in assets/touch.cfg assets/BotProfile.db; do
-            unzip -l "$APK" "$f" | grep -q "$f" || {
-              echo "::error::$f missing from the APK"; exit 1; }
+          # The assets directory becomes the cstrike game directory on device,
+          # so it must carry exactly one archive and no loose game files:
+          # loose sounds/maps shadow the real ones (titles stopped resolving
+          # and mod sounds went missing).
+          unzip -l "$APK" | grep ' assets/' | grep -v ' assets/extras.pk3$' && {
+            echo "::error::loose files next to extras.pk3 - they would shadow the game files"; exit 1; }
+          unzip -l "$APK" assets/extras.pk3 | grep -q 'assets/extras.pk3' || {
+            echo "::error::assets/extras.pk3 missing from the APK"; exit 1; }
+          for f in assets/maps/tr_1.bsp assets/touch.cfg; do
+            if unzip -l "$APK" "$f" | grep -q "$f"; then
+              echo "::error::$f must be inside extras.pk3, not loose in assets"; exit 1
+            fi
           done
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
