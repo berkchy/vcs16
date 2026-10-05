@@ -46,7 +46,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean checkAndShowCrash() {
-        if (hasStoragePermission() && new File(CRASH_LOG_PATH).exists()) {
+        if (hasStoragePermission() && hasCrashReport()) {
             showCrashDialog();
             return true;
         }
@@ -55,6 +55,19 @@ public class MainActivity extends Activity {
             return true;
         }
         return false;
+    }
+
+    /**
+     * The crash handler creates crash.log on every start (INIT header plus a
+     * "--- Running (no crash) ---" marker), so the file is always there. Only a
+     * real crash report in it - the handler writes "=== CRASH ===" before the
+     * register dump - is worth interrupting the user for.
+     */
+    private boolean hasCrashReport() {
+        File f = new File(CRASH_LOG_PATH);
+        if (!f.exists()) return false;
+        String text = readCrashLog();
+        return text != null && text.contains("=== CRASH ===");
     }
 
     private boolean hasStoragePermission() {
@@ -77,7 +90,7 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_MANAGE_EXTERNAL) {
-            if (hasStoragePermission() && new File(CRASH_LOG_PATH).exists()) {
+            if (hasStoragePermission() && hasCrashReport()) {
                 showCrashDialog();
             } else {
                 launchXash();
