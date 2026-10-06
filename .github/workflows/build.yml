@@ -64,24 +64,24 @@ jobs:
         working-directory: android
       - name: Verify the APK ships its assets
         run: |
-          # The engine loads the mod assets from the client package, so an APK
-          # without assets/ starts and then dies on the first missing file.
+          # The engine mounts the client package's assets as the game directory,
+          # and the menu/scoreboard load them by path, so they have to be there
+          # as plain files and folders - not packed into an archive.
           APK=android/CS16Client-Android.apk
           test -f "$APK" || { echo "::error::$APK not found"; exit 1; }
           COUNT=$(unzip -l "$APK" | grep -c ' assets/' || true)
           echo "asset entries: $COUNT"
-          # The assets directory becomes the cstrike game directory on device,
-          # so it must carry exactly one archive and no loose game files:
-          # loose sounds/maps shadow the real ones (titles stopped resolving
-          # and mod sounds went missing).
-          unzip -l "$APK" | grep ' assets/' | grep -v ' assets/extras.pk3$' && {
-            echo "::error::loose files next to extras.pk3 - they would shadow the game files"; exit 1; }
-          unzip -l "$APK" assets/extras.pk3 | grep -q 'assets/extras.pk3' || {
-            echo "::error::assets/extras.pk3 missing from the APK"; exit 1; }
-          for f in assets/maps/tr_1.bsp assets/touch.cfg; do
-            if unzip -l "$APK" "$f" | grep -q "$f"; then
-              echo "::error::$f must be inside extras.pk3, not loose in assets"; exit 1
-            fi
+          if [ "$COUNT" -lt 100 ]; then
+            echo "::error::APK has almost no assets ($COUNT) - the merge ran before CMake staged them"
+            exit 1
+          fi
+          if unzip -l "$APK" | grep -q ' assets/extras\.pk3'; then
+            echo "::error::extras must not be packed - the menu and free-vgui read assets/ by path"
+            exit 1
+          fi
+          for f in assets/touch.cfg assets/BotProfile.db assets/maps/tr_1.bsp; do
+            unzip -l "$APK" "$f" | grep -q "$f" || {
+              echo "::error::$f missing from the APK"; exit 1; }
           done
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
