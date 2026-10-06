@@ -118,21 +118,19 @@ android {
 	}
 
 	// The engine resolves the mod assets from the *client* package, so the
-	// client APK has to carry them. They are merged as plain files and folders
-	// under assets/ - the same shape the vanilla CS 1.6 client ships - because
-	// the main menu and free-vgui load them by path: packed into one extras.pk3
-	// the New Game / Hazard Course / Training entries come out greyed out and
-	// +showscores draws nothing. Only the downloaded bot graphs are staged by
-	// CMake (see CMakeLists), they do not exist at merge time.
+	// client APK has to carry them. The tree is the vanilla client's own assets
+	// directory (3rdparty/cs16client-assets, taken from CS16Client-Android.apk):
+	// the same files in the same folders. Everything that was assembled from
+	// other pieces - the extras fork plus the yapb configs - did not match what
+	// the menu and the bot data loader look for, and the menu entries came out
+	// greyed out. Only the downloaded bot graphs are staged by CMake (see
+	// CMakeLists), they do not exist at merge time.
 	tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
 		dependsOn(tasks.matching { it.name.startsWith("configureCMake") })
 	}
 	sourceSets {
 		getByName("main") {
-			assets.srcDirs += [
-				file("../../3rdparty/cs16client-extras"),
-				file("../../3rdparty/yapb/cfg"),
-			]
+			assets.srcDirs += file("../../3rdparty/cs16client-assets")
 		}
 	}
 }

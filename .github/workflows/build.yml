@@ -79,7 +79,8 @@ jobs:
             echo "::error::extras must not be packed - the menu and free-vgui read assets/ by path"
             exit 1
           fi
-          for f in assets/touch.cfg assets/BotProfile.db assets/maps/tr_1.bsp; do
+          for f in assets/touch.cfg assets/BotProfile.db assets/maps/tr_1.bsp \
+                   assets/addons/yapb/conf/yapb.cfg assets/sound/radio/bot/a.wav; do
             unzip -l "$APK" "$f" | grep -q "$f" || {
               echo "::error::$f missing from the APK"; exit 1; }
           done
