@@ -114,16 +114,10 @@ set(EXTRAS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cs16client-extras")
 set(YAPB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/yapb/cfg")
 
 if(ANDROID)
-	# Gradle merges the extras and the yapb configs as plain files under assets/
-	# (see android/app/build.gradle) - that layout is what the main menu and
-	# free-vgui expect. Only the bot graphs have to be staged here, since they
-	# are downloaded during this configure and do not exist at merge time.
-	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/android/app/src/main/assets")
-
-	file(GLOB GRAPH_FILES "${GRAPHS_OUTPUT}/*")
-	if (GRAPH_FILES)
-		file(COPY ${GRAPH_FILES} DESTINATION ${EXTRAS_OUTPUT})
-	endif()
+	# Nothing to stage: the client APK's assets are the vanilla client's own
+	# directory (3rdparty/cs16client-assets, merged by Gradle) and it already
+	# carries the bot graphs. Copying them here as well made the asset merge fail
+	# with "Duplicate resources" on every map.
 else()
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/extras.pk3")
 

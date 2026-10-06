@@ -123,11 +123,7 @@ android {
 	// the same files in the same folders. Everything that was assembled from
 	// other pieces - the extras fork plus the yapb configs - did not match what
 	// the menu and the bot data loader look for, and the menu entries came out
-	// greyed out. Only the downloaded bot graphs are staged by CMake (see
-	// CMakeLists), they do not exist at merge time.
-	tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
-		dependsOn(tasks.matching { it.name.startsWith("configureCMake") })
-	}
+	// greyed out.
 	sourceSets {
 		getByName("main") {
 			assets.srcDirs += file("../../3rdparty/cs16client-assets")
