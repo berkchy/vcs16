@@ -126,6 +126,19 @@ else()
 	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		target_compile_definitions(vgui2client PRIVATE X64BITS)
 	endif()
+
+	# 32-bit x86 defaults to no SSE2, but the mathlib vector ops behind the
+	# panel code are SSE intrinsics, and GCC refuses to inline the
+	# always_inline ones without it ("target specific option mismatch").
+	if(CMAKE_SIZEOF_VOID_P EQUAL 4 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86)$")
+		target_compile_options(vgui2client PRIVATE -msse2)
+	endif()
+endif()
+
+# macOS ships the GNU iconv in libiconv, not in libSystem, so the UCS-2
+# conversions in strtools.cpp need it named explicitly.
+if(APPLE)
+	target_link_libraries(vgui2client PRIVATE iconv)
 endif()
 
 # UTL strings/buffers duplicate the client's miniutl ones (same mangled
