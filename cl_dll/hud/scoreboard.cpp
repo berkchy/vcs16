@@ -95,9 +95,8 @@ int CHudScoreboard :: Init( void )
 {
 	gHUD.AddHudElem( this );
 
-	int r1 = gEngfuncs.pfnAddCommand( "+showscores", __ShowScores );
-	int r2 = gEngfuncs.pfnAddCommand( "-showscores", __HideScores );
-	gEngfuncs.Con_Printf( "Scoreboard1: pfnAddCommand +showscores=%d -showscores=%d\n", r1, r2 );
+	gEngfuncs.pfnAddCommand( "+showscores", __ShowScores );
+	gEngfuncs.pfnAddCommand( "-showscores", __HideScores );
 
 	HOOK_MESSAGE( gHUD.m_Scoreboard, ScoreInfo );
 	HOOK_MESSAGE( gHUD.m_Scoreboard, TeamScore );
