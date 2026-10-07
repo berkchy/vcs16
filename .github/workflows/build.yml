@@ -112,17 +112,11 @@ jobs:
           sudo apt-get install libatomic1 libgcc-s1 \
             libstdc++6 gcc-multilib g++-multilib \
             ninja-build libfontconfig-dev ccache
-      - name: Setup VitaSDK cache
-        id: cache-vitasdk
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.VITASDK }}
-          key: VitaSDK-cache-${{ hashFiles('scripts/psvita_sdk.sh') }}
-          restore-keys: |
-            VitaSDK-cache-${{ github.ref_name }}
-            VitaSDK-cache-
+      # No cache here on purpose: actions/cache does not restore the exec
+      # bit, so a hit comes back with a /vitasdk/bin/pacman that vdpm
+      # refuses ("package client is not executable"). Installing takes
+      # seconds, ccache below is the one worth keeping.
       - name: Setup VitaSDK
-        if: steps.cache-vitasdk.outputs.cache-hit != 'true'
         run: |
           scripts/psvita_sdk.sh
       - name: Setup compilation cache
