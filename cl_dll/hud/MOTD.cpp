@@ -27,10 +27,50 @@
 #include <stdio.h>
 #include "draw_util.h"
 #include "build.h"
+#include "APIProxy.h"
 
 #if XASH_WIN32 == 1 || XASH_PSVITA == 1
 #define strcasestr strstr
 #endif
+
+/***
+ *	Removes the html tags of a MOTD that the engine could not display in a
+ *	platform dialog, so it stays readable through the HUD text renderer.
+ *	Entities that the MOTD actually renders (&amp; and friends) are kept.
+ ****/
+static void StripMOTDTags( CUtlString &motd )
+{
+	CUtlString stripped;
+	const char *pszSrc = motd.String();
+
+	for ( const char *pszTag = pszSrc; pszTag != NULL && *pszTag; )
+	{
+		if( *pszTag == '<' )
+		{
+			// drop the tag itself, but keep the newline a block level tag
+			// stood for, otherwise the lines run into each other
+			if( ( pszTag[1] == 'b' || pszTag[1] == 'B' || pszTag[1] == 'p' || pszTag[1] == 'P'
+				|| pszTag[1] == 't' || pszTag[1] == 'T' || pszTag[1] == 'l' || pszTag[1] == 'L' )
+				&& pszTag[2] == '>' )
+			{
+				stripped.Append( "\n" );
+				pszTag += 3;
+				continue;
+			}
+
+			const char *pszEnd = strchr( pszTag, '>' );
+			if( !pszEnd )
+				break;
+
+			pszTag = pszEnd + 1;
+			continue;
+		}
+
+		stripped.AppendChar( *pszTag++ );
+	}
+
+	motd = stripped;
+}
 
 int CHudMOTD :: Init( void )
 {
@@ -145,11 +185,21 @@ int CHudMOTD :: MsgFunc_MOTD( const char *pszName, int iSize, void *pbuf )
 	int is_finished = reader.ReadByte();
 	m_szMOTD.Append( reader.ReadString() );
 
-	// we still don't support html tags in motd :(
+	// An HTML MOTD is meant to be shown in a real panel, not squeezed into the
+	// HUD text renderer: hand the payload to the engine, which puts it into a
+	// platform dialog (a sandboxed WebView on Android, nothing elsewhere). When
+	// the dialog cannot be shown we still do not discard the MOTD - we strip the
+	// tags and let the HUD renderer below draw it as plain text.
 	if( strcasestr( m_szMOTD.String(), "<!DOCTYPE HTML>" ) )
 	{
-		Reset();
-		ignoreThisMotd = true;
+		if( gEngfuncs.pfnShowMOTD && gEngfuncs.pfnShowMOTD( m_szMOTD.String() ) )
+		{
+			Reset();
+			ignoreThisMotd = true;
+			return 1;
+		}
+
+		StripMOTDTags( m_szMOTD );
 	}
 
 	if ( is_finished )

@@ -354,6 +354,8 @@ typedef int						(*pfnEngSrc_pfnGetAppID_t)			( void );
 typedef cmdalias_t*				(*pfnEngSrc_pfnGetAliases_t)		( void );
 typedef void					(*pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t) ( int *x, int *y );
 typedef int							(*pfnEngSrc_pfnFilteredClientCmd_t) 	( char *szCmdString );
+typedef int								(*pfnEngSrc_pfnShowMOTD_t)( const char *html );
+typedef int								(*pfnEngSrc_pfnIsMOTDDialogActive_t)( void );
 
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
@@ -493,6 +495,17 @@ typedef struct cl_enginefuncs_s
 	pfnEngSrc_pfnGetAliases_t				pfnGetAliasList;
 	pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t pfnVguiWrap2_GetMouseDelta;
 	pfnEngSrc_pfnFilteredClientCmd_t		pfnFilteredClientCmd;
+
+	// Show an HTML MOTD in a platform dialog (Android: a sandboxed WebView).
+	// Returns true when the dialog is on screen, false when there is none, so
+	// the client can fall back to its own HUD text renderer. Appended after
+	// pfnFilteredClientCmd to stay ABI safe - dlls built against the old
+	// header copy a smaller struct and simply see NULL here.
+	pfnEngSrc_pfnShowMOTD_t				pfnShowMOTD;
+
+	// true while the platform MOTD dialog is up (the CS client defers its
+	// team select menu until this goes false).
+	pfnEngSrc_pfnIsMOTDDialogActive_t		pfnIsMOTDDialogActive;
 } cl_enginefunc_t;
 
 // Function type declarations for engine destination functions
