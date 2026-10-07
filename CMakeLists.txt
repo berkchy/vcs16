@@ -28,6 +28,22 @@ set(SERVER_INSTALL_DIR "dlls" CACHE STRING "Server library location.")
 # 	add_link_options(/fsanitize=address)
 # endif()
 
+if(MSVC)
+	# /FS: allow parallel CL.EXE instances to write the same PDB
+	# (Ninja builds, e.g. yapb, hit C1041 without it)
+	add_compile_options(/FS)
+endif()
+
+# Force-include the compiler shims (STDINT_H, _format) into EVERY target.
+# NOTE: this must come before any add_subdirectory() call: directory scoped
+# flags only apply to targets added afterwards (cl_dll was silently missing
+# them when this lived inside the BUILD_MAINUI block below).
+# NOTE 2: no quotes around the /FI path: MSVC takes them literally and
+# then cannot open '"D:/.../mainui_config.h"'.
+if(MSVC)
+	add_compile_options(/FI${CMAKE_CURRENT_SOURCE_DIR}/cmake/mainui_config.h)
+endif()
+
 if(VITA)
 	message(STATUS "Building for PS Vita")
 	add_compile_options(-fno-use-cxa-atexit)
@@ -42,6 +58,7 @@ check_symbol_exists(strlcpy string.h HAVE_STRLCPY)
 check_symbol_exists(strlcat string.h HAVE_STRLCAT)
 
 if(BUILD_CLIENT)
+	add_subdirectory(3rdparty/vgui2)
 	add_subdirectory(cl_dll)
 endif()
 
@@ -86,7 +103,6 @@ if(BUILD_MAINUI)
 #	set(CS16CLIENT ON)
 	set(XASH_SDK "${CMAKE_CURRENT_SOURCE_DIR}")
 	include_directories("${CMAKE_CURRENT_SOURCE_DIR}/public")
-	add_definitions(-include "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mainui_config.h")
 	set(MAINUI_RENDER_PICBUTTON_TEXT ON)
 
 	add_subdirectory(3rdparty/mainui_cpp)

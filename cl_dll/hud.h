@@ -374,6 +374,7 @@ public:
 	int DrawModernTeamPlayers( int teamnumber, int x, int y, int wide, int tall, int nameoffset );
 
 	void DeathMsg( int killer, int victim );
+	bool VGui2ScoreboardDraw( void );
 	void SetScoreboardDefaults( void );
 	void GetAllPlayersInfo( void );
 

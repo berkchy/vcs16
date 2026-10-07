@@ -63,9 +63,19 @@ include_directories(
 	../3rdparty/mainui_cpp/controls
 	../3rdparty/mainui_cpp/menus
 	../3rdparty/mainui_cpp/miniutl
+	../3rdparty/vgui2/public
+	../3rdparty/vgui2/public/tier0
+	../3rdparty/vgui2/public/tier1
+	../3rdparty/vgui2/public/common
 	particleman)
 
-add_definitions(-DCLIENT_WEAPONS -DCLIENT_DLL -DSTDINT_H=<cstdint>)
+add_definitions(-DCLIENT_WEAPONS -DCLIENT_DLL)
+if(NOT MSVC)
+	# NOTE: MSVC/cmd.exe mangles -DSTDINT_H=<cstdint> (<...> becomes
+	# input redirection, leaving STDINT_H empty). MSVC gets STDINT_H
+	# from the force-included cmake/mainui_config.h instead.
+	add_definitions(-DSTDINT_H=<cstdint>)
+endif()
 
 if(NOT DEFINED CS16_PATCHER_VERSION)
 	set(CS16_PATCHER_VERSION "dev")
@@ -87,6 +97,11 @@ else()
 endif()
 
 add_library(${CLIENT_LIB} SHARED ${CS_CLIENT_SRC})
+
+# Valve VGUI2 scoreboard lives in its own shared library (separate UTL
+# world from the client's miniutl); the plain-C bridge is the only
+# coupling. CSB_* are exported with default visibility for this.
+target_link_libraries(${CLIENT_LIB} vgui2client)
 
 # crashhandler.cpp mirrors the crash log to logcat via __android_log_write()
 if(ANDROID)

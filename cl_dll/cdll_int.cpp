@@ -18,6 +18,7 @@
 // this implementation handles the linking of the engine to the DLL
 //
 
+#include "VGUI/cs_scoreboard_bridge.h"
 #include "hud.h"
 #include "netadr.h"
 #include "pmtrace.h"
@@ -474,6 +475,15 @@ int DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi )
 	g_iMobileAPIVersion = MOBILITY_API_VERSION;
 	gMobileAPI = *mobileapi;
 
+	// Hand the engine's VGUI2 factory to the scoreboard bridge (if the
+	// engine provides one). NULL is fine: the text HUD stays in that case.
+	{
+		void *vgui2Factory = NULL;
+		if( gMobileAPI.pfnGetNativeObject )
+			vgui2Factory = gMobileAPI.pfnGetNativeObject( "VGui2Factory" );
+		CSB_SetEngineFactory( vgui2Factory );
+	}
+
 #define TOUCH_ADDDEFAULT (*gMobileAPI.pfnTouchAddDefaultButton)
 
 	gMobileAPI.pfnTouchResetDefaultButtons();
@@ -670,3 +680,26 @@ private:
 };
 
 EXPOSE_SINGLE_INTERFACE(CClientExports, IGameClientExports, GAMECLIENTEXPORTS_INTERFACE_VERSION)
+
+//-----------------------------------------------------------------------------
+// VGUI1 legacy support API entry point.
+//
+// The engine probes the client DLL for this symbol when loading it.  We
+// provide stubs for the eight function pointers because the actual VGUI2
+// rendering lives in the engine-side host and the client never uses the
+// VGUI1 drawing pipeline.
+//-----------------------------------------------------------------------------
+#include "vgui_api.h"
+
+extern "C" void EXPORT InitVGUISupportAPI( vguiapi_t *api )
+{
+	api->Startup    = NULL;
+	api->Shutdown   = NULL;
+	api->GetPanel   = NULL;
+	api->Paint      = NULL;
+	api->Mouse      = NULL;
+	api->Key        = NULL;
+	api->MouseMove  = NULL;
+	api->TextInput  = NULL;
+	api->SetPaintOffset = NULL;
+}

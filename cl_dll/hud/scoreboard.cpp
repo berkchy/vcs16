@@ -29,6 +29,7 @@
 #include "draw_util.h"
 #include "vgui_parser.h"
 #include "eventscripts.h"
+#include "../VGUI/cs_scoreboard_bridge.h"
 
 hud_player_info_t   g_PlayerInfoList[MAX_PLAYERS+1]; // player info from the engine
 extra_player_info_t	g_PlayerExtraInfo[MAX_PLAYERS+1]; // additional player info sent directly to the client dll
@@ -168,7 +169,11 @@ bool CHudScoreboard :: ShouldDrawScoreboard() const
 
 int CHudScoreboard :: Draw( float flTime )
 {
-	if( !ShouldDrawScoreboard( ))
+	// Steam-style VGUI2 scoreboard replaces the text HUD when available.
+	if ( VGui2ScoreboardDraw() )
+		return 1;
+
+	if( !ShouldDrawScoreboard() )
 		return 1;
 
 	if( !m_bForceDraw )
@@ -737,5 +742,49 @@ void CHudScoreboard :: UserCmd_ShowScores( void )
 
 void CHudScoreboard :: UserCmd_HideScores( void )
 {
+	CSB_HideBoard();
 	m_bForceDraw = m_bShowscoresHeld = false;
+}
+
+// Push a live snapshot to the VGUI2 scoreboard. Returns true when the VGUI
+// board handled this frame (caller skips the legacy text drawing).
+bool CHudScoreboard :: VGui2ScoreboardDraw( void )
+{
+	if ( !CSB_IsAvailable() )
+		return false;
+
+	GetAllPlayersInfo();
+
+	csb_board_t board;
+	memset( &board, 0, sizeof( board ) );
+	strncpy( board.serverName, gHUD.m_szServerName, sizeof( board.serverName ) - 1 );
+	board.teamplay = gHUD.m_Teamplay ? 1 : 0;
+
+	for ( int i = 1; i <= m_iNumTeams && board.numTeams < CSB_MAX_TEAMS; i++ )
+	{
+		csb_team_t *t = &board.teams[board.numTeams++];
+		strncpy( t->name, g_TeamInfo[i].name, sizeof( t->name ) - 1 );
+		t->score = g_TeamInfo[i].frags;
+		t->players = g_TeamInfo[i].players;
+		t->number = g_TeamInfo[i].teamnumber;
+	}
+
+	for ( int i = 1; i < MAX_PLAYERS && board.numPlayers < CSB_MAX_PLAYERS; i++ )
+	{
+		if ( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
+			continue;
+		csb_player_t *p = &board.players[board.numPlayers++];
+		strncpy( p->name, g_PlayerInfoList[i].name, sizeof( p->name ) - 1 );
+		p->kills = g_PlayerExtraInfo[i].frags;
+		p->deaths = g_PlayerExtraInfo[i].deaths;
+		p->ping = g_PlayerInfoList[i].ping;
+		p->team = g_PlayerExtraInfo[i].teamnumber;
+		p->dead = g_PlayerExtraInfo[i].dead ? 1 : 0;
+		p->isLocal = ( i == m_iPlayerNum ) ? 1 : 0;
+		p->isSpectator = ( p->team == TEAM_SPECTATOR || p->team == TEAM_UNASSIGNED ||
+			g_PlayerInfoList[i].spectator ) ? 1 : 0;
+	}
+
+	CSB_ShowBoard( &board );
+	return true;
 }
