@@ -17,9 +17,13 @@ git clone https://github.com/vitasdk/vdpm.git --depth=1 || exit 1
 pushd vdpm || exit 1
 ./bootstrap-vitasdk.sh || exit 1
 
-# The extraction bootstrap does drops the exec bit, and vdpm then refuses to
-# go on with "package client is not executable: /vitasdk/bin/pacman".
-chmod +x "$VITASDK"/bin/* 2>/dev/null || true
+# The shell wrapper in this repo predates the current SDK layout and looks for
+# the package client in $VITASDK/bin, while the bootstrap now ships it under
+# libexec/vdpm - so vdpm died with "package client is not executable" before
+# installing anything. Point it at the real path when that is where it is.
+if [ -x "$VITASDK/libexec/vdpm/pacman" ]; then
+	export VDPM_PACMAN="$VITASDK/libexec/vdpm/pacman"
+fi
 
 install_package taihen
 install_package kubridge
