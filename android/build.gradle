@@ -1,3 +1,6 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JvmVendorSpec
+
 buildscript {
 	repositories {
 		mavenCentral()
@@ -13,5 +16,18 @@ allprojects {
 	repositories {
 		mavenCentral()
 		google()
+	}
+
+	// The Kotlin plugin pins its own toolchain to a JetBrains JDK 21 and asks
+	// Gradle to download one, which fails whenever foojay is unreachable. Tell it
+	// the toolchain is whatever the daemon is running on, so the JDK the CI
+	// already installed is used.
+	plugins.withId('org.jetbrains.kotlin.android') {
+		kotlin {
+			jvmToolchain {
+				languageVersion.set(JavaLanguageVersion.of(21))
+				vendor.set(JvmVendorSpec.ADOPTIUM)
+			}
+		}
 	}
 }
