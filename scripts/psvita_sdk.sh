@@ -16,6 +16,11 @@ echo "Downloading vitasdk..."
 git clone https://github.com/vitasdk/vdpm.git --depth=1 || exit 1
 pushd vdpm || exit 1
 ./bootstrap-vitasdk.sh || exit 1
+
+# The extraction bootstrap does drops the exec bit, and vdpm then refuses to
+# go on with "package client is not executable: /vitasdk/bin/pacman".
+chmod +x "$VITASDK"/bin/* 2>/dev/null || true
+
 install_package taihen
 install_package kubridge
 install_package zlib
