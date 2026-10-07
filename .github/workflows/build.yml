@@ -35,7 +35,12 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          # The Kotlin plugin wants a Java 21 toolchain and used to fetch one
+          # from foojay at build time, which failed whenever that endpoint was
+          # unreachable or rate limited ("Unable to download toolchain matching
+          # the requirements"). Providing 21 up front makes the build use the
+          # local JDK instead of the network.
+          java-version: 21
           distribution: 'temurin'
           cache: gradle
       - name: Setup compilation cache
