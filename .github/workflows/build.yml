@@ -285,13 +285,33 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-      - name: Remove old release
+      - name: Upload new release
+        # The release is rolling, so it is updated in place now instead of being
+        # deleted and recreated. Deleting it meant one failed platform job (a
+        # toolchain download, a flaky test) dropped that platform's asset from
+        # the release for good - the Android APK vanished even though its build
+        # had been green minutes earlier. Assets whose platform did not build
+        # this run are left alone.
         run: |
+          set -uo pipefail
           TAG_NAME=${{ (github.ref_name == 'main' || github.ref_name == 'master') && 'continuous' || format('continuous-{0}', github.ref_name) }}
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          if gh release list --repo ${{ github.repository }} | grep -q -e "$TAG_NAME"; then
-            gh release delete "$TAG_NAME" --yes --cleanup-tag --repo ${{ github.repository }}
+          shopt -s nullglob
+          ASSETS=(CS16Client-*)
+          if [ ${#ASSETS[@]} -eq 0 ]; then
+            echo "No CS16Client-* artifacts in this run, keeping the existing release"
+            exit 0
           fi
+          if ! gh release view "$TAG_NAME" --repo ${{ github.repository }} >/dev/null 2>&1; then
+            gh release create "$TAG_NAME" --repo ${{ github.repository }} \
+              --title "CS16Client development build" --prerelease --generate-notes
+          fi
+          for f in "${ASSETS[@]}"; do
+            name=$(basename "$f")
+            gh release delete-asset "$TAG_NAME" "$name" -y --repo ${{ github.repository }} >/dev/null 2>&1 || true
+            gh release upload "$TAG_NAME" "$f" --clobber --repo ${{ github.repository }}
+            echo "uploaded $name"
+          done
+          echo "RELEASE_URL=https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Notify Discord on successful release
@@ -326,18 +346,3 @@ jobs:
           )
           curl -fsSL -F "payload_json=$BODY" "$DISCORD_WEBHOOK" >/dev/null 2>&1 \
             || echo "Failed to send Discord webhook"
-      - name: Upload new release
-        run: |
-          TAG_NAME=${{ (github.ref_name == 'main' || github.ref_name == 'master') && 'continuous' || format('continuous-{0}', github.ref_name) }}
-          shopt -s nullglob
-          ASSETS=(CS16Client-*)
-          if [ ${#ASSETS[@]} -eq 0 ]; then
-            echo "No CS16Client-* artifacts in this run, keeping the existing release"
-            exit 0
-          fi
-          gh release create "$TAG_NAME" --title "CS16Client development build" \
-            --prerelease --generate-notes \
-            "${ASSETS[@]}" --repo ${{ github.repository }}
-          echo "RELEASE_URL=https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME" >> $GITHUB_ENV
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
