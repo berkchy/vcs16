@@ -174,7 +174,12 @@ static int tryReadSymtab(const char *so_path,
 	if (fd < 0) return 0;
 
 	struct stat st;
-	if (fstat(fd, &st) < 0 || st.st_size <= 0 || st.st_size > (off_t)(8 * 1024 * 1024)) {
+	// The cap used to be 8 MB, which silently threw away the symbol tables of
+	// exactly the libraries whose frames are worth naming: libamxmodx.so is over
+	// 8 MB and libxash.so is around 11 MB, so both came out as bare offsets while
+	// only the small libraries resolved. The mapping is read-only and never
+	// touched again, so a generous limit costs nothing but address space.
+	if (fstat(fd, &st) < 0 || st.st_size <= 0 || st.st_size > (off_t)(64 * 1024 * 1024)) {
 		close(fd);
 		return 0;
 	}
