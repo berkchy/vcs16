@@ -58,7 +58,12 @@ check_symbol_exists(strlcpy string.h HAVE_STRLCPY)
 check_symbol_exists(strlcat string.h HAVE_STRLCAT)
 
 if(BUILD_CLIENT)
-	add_subdirectory(3rdparty/vgui2)
+	# The Vita toolchain has no <dlfcn.h>, which Valve's tier1/interface.h
+	# wants, so the VGUI2 panel is not built there and the scoreboard stays
+	# text HUD (see cl_dll/VGUI/vgui2_stub.cpp).
+	if(NOT VITA)
+		add_subdirectory(3rdparty/vgui2)
+	endif()
 	add_subdirectory(cl_dll)
 endif()
 

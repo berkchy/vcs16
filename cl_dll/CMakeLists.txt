@@ -101,7 +101,13 @@ add_library(${CLIENT_LIB} SHARED ${CS_CLIENT_SRC})
 # Valve VGUI2 scoreboard lives in its own shared library (separate UTL
 # world from the client's miniutl); the plain-C bridge is the only
 # coupling. CSB_* are exported with default visibility for this.
-target_link_libraries(${CLIENT_LIB} vgui2client)
+# Vita cannot build that library (no <dlfcn.h>), so it links a stub that
+# reports the panel unavailable and leaves the text HUD in charge.
+if(VITA)
+	target_sources(${CLIENT_LIB} PRIVATE VGUI/vgui2_stub.cpp)
+else()
+	target_link_libraries(${CLIENT_LIB} vgui2client)
+endif()
 
 # crashhandler.cpp mirrors the crash log to logcat via __android_log_write()
 if(ANDROID)
