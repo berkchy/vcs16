@@ -354,8 +354,6 @@ typedef int						(*pfnEngSrc_pfnGetAppID_t)			( void );
 typedef cmdalias_t*				(*pfnEngSrc_pfnGetAliases_t)		( void );
 typedef void					(*pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t) ( int *x, int *y );
 typedef int							(*pfnEngSrc_pfnFilteredClientCmd_t) 	( char *szCmdString );
-typedef int								(*pfnEngSrc_pfnShowMOTD_t)( const char *html );
-typedef int								(*pfnEngSrc_pfnIsMOTDDialogActive_t)( void );
 
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
@@ -496,17 +494,30 @@ typedef struct cl_enginefuncs_s
 	pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t pfnVguiWrap2_GetMouseDelta;
 	pfnEngSrc_pfnFilteredClientCmd_t		pfnFilteredClientCmd;
 
-	// Show an HTML MOTD in a platform dialog (Android: a sandboxed WebView).
-	// Returns true when the dialog is on screen, false when there is none, so
-	// the client can fall back to its own HUD text renderer. Appended after
-	// pfnFilteredClientCmd to stay ABI safe - dlls built against the old
-	// header copy a smaller struct and simply see NULL here.
-	pfnEngSrc_pfnShowMOTD_t				pfnShowMOTD;
-
-	// true while the platform MOTD dialog is up (the CS client defers its
-	// team select menu until this goes false).
-	pfnEngSrc_pfnIsMOTDDialogActive_t		pfnIsMOTDDialogActive;
+	// NOTHING MAY BE APPENDED HERE. Initialize() does gEngfuncs = *pEnginefuncs,
+	// so a dll built against a struct larger than the engine that loaded it
+	// reads past the end of the engine's table and calls whatever garbage
+	// pointer it finds there. Every field added to this struct breaks all older
+	// engine APKs at once. Optional engine features are looked up by name via
+	// mobile_engfuncs_t::pfnGetNativeObject - see engine_motdapi_t below.
 } cl_enginefunc_t;
+
+/*
+========================
+engine_motdapi_t
+
+Mirror of the engine's android_motdapi_t, fetched with
+pfnGetNativeObject("MOTDAPI"). Returns true when the platform dialog is on
+screen, false when there is none, so the caller can fall back to its own text
+renderer. An engine that does not know the name hands back NULL and the MOTD
+stays textual.
+*/
+typedef struct engine_motdapi_s
+{
+	size_t	size;
+	int		(*pfnShowMOTD)( const char *html );
+	int		(*pfnIsMOTDDialogActive)( void );
+} engine_motdapi_t;
 
 // Function type declarations for engine destination functions
 typedef void	(*pfnEngDst_pfnSPR_Load_t )				( const char ** );

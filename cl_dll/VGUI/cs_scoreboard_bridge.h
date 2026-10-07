@@ -60,11 +60,15 @@ extern "C" {
 #define CSB_API
 #endif
 
-// Called once by the client when the engine API is ready (may be NULL).
+// Exported by libvgui2client.so. The client dll does NOT link against that
+// library - it dlopen()s it and resolves these names at runtime, because a
+// DT_NEEDED entry that cannot be satisfied makes the whole client dll fail to
+// load. An APK that predates the scoreboard simply has no libvgui2client.so,
+// and the client must keep running with the text HUD (see vgui2_loader.h).
 CSB_API void CSB_SetEngineFactory( void *factory );
 
-// True when the VGUI2 scoreboard can be used (engine factory present).
-// Cheap; may be called every frame.
+// True when the VGUI2 scoreboard can be used (library loaded and the engine
+// handed us a factory). Cheap; may be called every frame.
 CSB_API int CSB_IsAvailable( void );
 
 // Push fresh data and show the panel (lazy-creates everything).

@@ -18,7 +18,8 @@
 // this implementation handles the linking of the engine to the DLL
 //
 
-#include "VGUI/cs_scoreboard_bridge.h"
+#include "VGUI/vgui2_loader.h"
+#include "motd_bridge.h"
 #include "hud.h"
 #include "netadr.h"
 #include "pmtrace.h"
@@ -46,6 +47,57 @@ mobile_engfuncs_t	gMobileAPI = { };
 CHud gHUD;
 int g_iXash = 0; // indicates a buildnum
 int g_iMobileAPIVersion = 0;
+
+// Resolved once in HUD_MobilityInterface, NULL on any engine that predates the
+// named lookup. Everything that uses it must treat NULL as "feature absent".
+static engine_motdapi_t *g_pMOTDAPI = NULL;
+
+/*
+========================
+MOTD_Lookup
+
+Fetch the engine's MOTD table by name. Never grows cl_enginefunc_t, so a client
+dll built here still loads into an older engine APK: that engine simply does
+not know the name and hands back NULL.
+========================
+*/
+static engine_motdapi_t *MOTD_Lookup( void )
+{
+	void *object = NULL;
+
+	if( gMobileAPI.pfnGetNativeObject )
+		object = gMobileAPI.pfnGetNativeObject( "MOTDAPI" );
+
+	if( !object )
+		return NULL;
+
+	engine_motdapi_t *api = static_cast<engine_motdapi_t *>( object );
+
+	// A future engine may grow the table; only use the prefix we understand.
+	if( api->size < sizeof( engine_motdapi_t ) || !api->pfnShowMOTD || !api->pfnIsMOTDDialogActive )
+	{
+		gEngfuncs.Con_Printf( "MOTD: engine MOTDAPI is too old (%d bytes), MOTD stays textual\n", (int)api->size );
+		return NULL;
+	}
+
+	return api;
+}
+
+extern "C" int MOTDAPI_Show( const char *html )
+{
+	if( !g_pMOTDAPI )
+		return false;
+
+	return g_pMOTDAPI->pfnShowMOTD( html ) ? true : false;
+}
+
+extern "C" int MOTDAPI_IsActive( void )
+{
+	if( !g_pMOTDAPI )
+		return false;
+
+	return g_pMOTDAPI->pfnIsMOTDDialogActive() ? true : false;
+}
 
 IGameMenuExports *g_pMenu = nullptr;
 IParticleMan *g_pParticleMan = NULL;
@@ -481,8 +533,15 @@ int DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi )
 		void *vgui2Factory = NULL;
 		if( gMobileAPI.pfnGetNativeObject )
 			vgui2Factory = gMobileAPI.pfnGetNativeObject( "VGui2Factory" );
-		CSB_SetEngineFactory( vgui2Factory );
+		VGUI2_SetEngineFactory( vgui2Factory );
 	}
+
+	// Same idea for the platform HTML MOTD. An engine without "MOTDAPI" just
+	// leaves g_pMOTDAPI NULL and every MOTD is drawn by the HUD renderer.
+	g_pMOTDAPI = MOTD_Lookup();
+
+	if( !g_pMOTDAPI )
+		gEngfuncs.Con_Printf( "MOTD: this Xash3D engine has no HTML MOTD, using the text MOTD\n" );
 
 #define TOUCH_ADDDEFAULT (*gMobileAPI.pfnTouchAddDefaultButton)
 

@@ -30,7 +30,7 @@
 #include "draw_util.h"
 #include "vgui_parser.h"
 #include "eventscripts.h"
-#include "../VGUI/cs_scoreboard_bridge.h"
+#include "../VGUI/vgui2_loader.h"
 
 extern hud_player_info_t   g_PlayerInfoList[MAX_PLAYERS+1];
 extern extra_player_info_t	g_PlayerExtraInfo[MAX_PLAYERS+1];
@@ -333,11 +333,11 @@ bool CHudScoreboard2 :: ShouldDrawScoreboard() const
 	return false;
 }
 
-// VGUI2 bridge: builds csb_board_t snapshot and calls CSB_ShowBoard.
+// VGUI2 bridge: builds csb_board_t snapshot and calls VGUI2_ShowBoard.
 // Returns true when the VGUI2 panel handled this frame.
 static bool VGui2ScoreboardDraw2( void )
 {
-	if ( !CSB_IsAvailable() )
+	if ( !VGUI2_IsAvailable() )
 		return false;
 
 	gHUD.m_Scoreboard.GetAllPlayersInfo();
@@ -409,7 +409,7 @@ static bool VGui2ScoreboardDraw2( void )
 			g_PlayerInfoList[i].spectator ) ? 1 : 0;
 	}
 
-	CSB_ShowBoard( &board );
+	VGUI2_ShowBoard( &board );
 	return true;
 }
 
@@ -425,7 +425,7 @@ int CHudScoreboard2 :: Draw( float flTime )
 	if ( !ShouldDrawScoreboard() )
 	{
 		// Ensure VGUI2 panel is hidden when scoreboard is dismissed.
-		CSB_HideBoard();
+		VGUI2_HideBoard();
 	}
 
 	const bool shouldDraw = ShouldDrawScoreboard();
@@ -1225,6 +1225,6 @@ void CHudScoreboard2 :: UserCmd_ShowScores( void )
 
 void CHudScoreboard2 :: UserCmd_HideScores( void )
 {
-	CSB_HideBoard();
+	VGUI2_HideBoard();
 	m_bForceDraw = m_bShowscoresHeld = false;
 }

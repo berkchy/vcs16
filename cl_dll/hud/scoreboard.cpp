@@ -29,7 +29,7 @@
 #include "draw_util.h"
 #include "vgui_parser.h"
 #include "eventscripts.h"
-#include "../VGUI/cs_scoreboard_bridge.h"
+#include "../VGUI/vgui2_loader.h"
 
 hud_player_info_t   g_PlayerInfoList[MAX_PLAYERS+1]; // player info from the engine
 extra_player_info_t	g_PlayerExtraInfo[MAX_PLAYERS+1]; // additional player info sent directly to the client dll
@@ -742,7 +742,7 @@ void CHudScoreboard :: UserCmd_ShowScores( void )
 
 void CHudScoreboard :: UserCmd_HideScores( void )
 {
-	CSB_HideBoard();
+	VGUI2_HideBoard();
 	m_bForceDraw = m_bShowscoresHeld = false;
 }
 
@@ -750,7 +750,7 @@ void CHudScoreboard :: UserCmd_HideScores( void )
 // board handled this frame (caller skips the legacy text drawing).
 bool CHudScoreboard :: VGui2ScoreboardDraw( void )
 {
-	if ( !CSB_IsAvailable() )
+	if ( !VGUI2_IsAvailable() )
 		return false;
 
 	GetAllPlayersInfo();
@@ -785,6 +785,6 @@ bool CHudScoreboard :: VGui2ScoreboardDraw( void )
 			g_PlayerInfoList[i].spectator ) ? 1 : 0;
 	}
 
-	CSB_ShowBoard( &board );
+	VGUI2_ShowBoard( &board );
 	return true;
 }

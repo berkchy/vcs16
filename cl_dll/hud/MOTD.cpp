@@ -28,6 +28,7 @@
 #include "draw_util.h"
 #include "build.h"
 #include "APIProxy.h"
+#include "motd_bridge.h"
 
 #if XASH_WIN32 == 1 || XASH_PSVITA == 1
 #define strcasestr strstr
@@ -192,7 +193,7 @@ int CHudMOTD :: MsgFunc_MOTD( const char *pszName, int iSize, void *pbuf )
 	// tags and let the HUD renderer below draw it as plain text.
 	if( strcasestr( m_szMOTD.String(), "<!DOCTYPE HTML>" ) )
 	{
-		if( gEngfuncs.pfnShowMOTD && gEngfuncs.pfnShowMOTD( m_szMOTD.String() ) )
+		if( MOTDAPI_Show( m_szMOTD.String() ) )
 		{
 			Reset();
 			ignoreThisMotd = true;

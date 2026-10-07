@@ -415,6 +415,11 @@ extern "C" CSB_API void CSB_ShowBoard( const csb_board_t *board )
 
 extern "C" CSB_API void CSB_HideBoard()
 {
+	// Guarded like ShowBoard: this is called unconditionally when the scoreboard
+	// key goes up and on shutdown, including on an engine that has no VGUI2
+	// factory at all, where Get() would touch a VGUI2 that never came up.
+	if ( !CSB_IsAvailable() )
+		return;
 	if ( CCStrikeClientScoreBoard::Get() )
 		CCStrikeClientScoreBoard::Get()->SetVisible( false );
 }

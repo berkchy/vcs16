@@ -98,15 +98,21 @@ endif()
 
 add_library(${CLIENT_LIB} SHARED ${CS_CLIENT_SRC})
 
-# Valve VGUI2 scoreboard lives in its own shared library (separate UTL
-# world from the client's miniutl); the plain-C bridge is the only
-# coupling. CSB_* are exported with default visibility for this.
-# Vita cannot build that library (no <dlfcn.h>), so it links a stub that
-# reports the panel unavailable and leaves the text HUD in charge.
-if(VITA)
-	target_sources(${CLIENT_LIB} PRIVATE VGUI/vgui2_stub.cpp)
-else()
-	target_link_libraries(${CLIENT_LIB} vgui2client)
+# Valve VGUI2 scoreboard lives in its own shared library (separate UTL world
+# from the client's miniutl); the plain-C bridge is the only coupling, and the
+# CSB_* names in it are exported with default visibility.
+#
+# Deliberately NOT linked: a DT_NEEDED entry that cannot be resolved makes
+# Android refuse to load the client dll altogether, so anyone on an APK that
+# predates the scoreboard would lose the game instead of losing the panel.
+# vgui2_loader.cpp dlopen()s it at runtime and leaves the text HUD in charge
+# when it is absent - which is also all a platform without dlopen (PS Vita)
+# gets, so no stub is needed here anymore.
+target_sources(${CLIENT_LIB} PRIVATE VGUI/vgui2_loader.cpp)
+target_include_directories(${CLIENT_LIB} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/VGUI)
+
+if(NOT VITA)
+	target_link_libraries(${CLIENT_LIB} ${CMAKE_DL_LIBS})
 endif()
 
 # crashhandler.cpp mirrors the crash log to logcat via __android_log_write()
