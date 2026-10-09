@@ -67,28 +67,41 @@ jobs:
             mv app/build/outputs/apk/git/debug/app-git-debug.apk CS16Client-Android.apk
           fi
         working-directory: android
-      - name: Verify the APK ships its assets
+      - name: Verify the APK is the shell nexora expects
         run: |
-          # The engine mounts the client package's assets as the game directory,
-          # and the menu/scoreboard load them by path, so they have to be there
-          # as plain files and folders - not packed into an archive.
+          # The git flavor is the APK nexora patches and hands to users, so it
+          # is a shell: the game content comes from nexora's own bundle and the
+          # client library is injected into the package at patch time. What must
+          # survive is the menu library (the engine's vgui2 loader looks for it
+          # in the client package) and a sane payload size.
           APK=android/CS16Client-Android.apk
           test -f "$APK" || { echo "::error::$APK not found"; exit 1; }
-          COUNT=$(unzip -l "$APK" | grep -c ' assets/' || true)
-          echo "asset entries: $COUNT"
-          if [ "$COUNT" -lt 100 ]; then
-            echo "::error::APK has almost no assets ($COUNT) - the merge ran before CMake staged them"
-            exit 1
-          fi
-          if unzip -l "$APK" | grep -q ' assets/extras\.pk3'; then
-            echo "::error::extras must not be packed - the menu and free-vgui read assets/ by path"
-            exit 1
-          fi
-          for f in assets/touch.cfg assets/BotProfile.db assets/maps/tr_1.bsp \
-                   assets/addons/yapb/conf/yapb.cfg assets/sound/radio/bot/a.wav; do
-            unzip -l "$APK" "$f" | grep -q "$f" || {
-              echo "::error::$f missing from the APK"; exit 1; }
+
+          unzip -l "$APK" | grep -q 'lib/arm64-v8a/libxashmenu' || {
+            echo "::error::libxashmenu is missing - the menu cannot load"; exit 1; }
+
+          for abi in x86 x86_64; do
+            if unzip -l "$APK" | grep -q "lib/$abi/"; then
+              echo "::error::lib/$abi should not be in the git flavor"; exit 1
+            fi
           done
+
+          if unzip -l "$APK" | grep -q 'lib/arm64-v8a/libclient'; then
+            echo "::error::libclient is injected by nexora, it must not ship in the APK"
+            exit 1
+          fi
+
+          COUNT=$(unzip -l "$APK" | grep -c ' assets/' || true)
+          echo "asset entries: $COUNT (expected 0 - nexora ships the content)"
+          if [ "$COUNT" -ne 0 ]; then
+            echo "::error::the shell should not carry $COUNT asset entries"; exit 1
+          fi
+
+          SIZE=$(stat -c%s "$APK")
+          echo "apk size: $SIZE bytes"
+          if [ "$SIZE" -gt 10485760 ]; then
+            echo "::error::shell APK is $SIZE bytes, expected under 10 MB"; exit 1
+          fi
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

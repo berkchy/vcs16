@@ -110,6 +110,45 @@ android {
 		create("git") {
 			dimension = "version"
 			buildConfigField("Boolean", "IS_GOOGLE_PLAY_BUILD", "false")
+
+			// Without an abiFilters block AGP builds every ABI the NDK
+			// supports, so the APK carried lib/x86 and lib/x86_64 copies of
+			// the client that nothing can load. The engine APK still ships
+			// xash for x86, but nexora only ever produced the arm64-v8a and
+			// armeabi-v7a bundles, so an x86 install never got a cl_dll from
+			// anywhere: those two ABIs were dead weight in the APK. The
+			// googlePlay flavor keeps the full set - it is distributed
+			// through the store, where x86 emulators are a real target.
+			ndk {
+				abiFilters "arm64-v8a", "armeabi-v7a"
+			}
+
+			packaging {
+				jniLibs {
+					// useLegacyPackaging stores .so uncompressed, which is what
+					// main() keeps - the engine loads xashmenu straight out of
+					// the APK, so extractNativeLibs=false has to stay. But with
+					// the client library gone the menu is the only lib left, and
+					// deflating it takes it from 5.3 MB to 1.9 MB, which is
+					// what keeps the shell near 2 MB instead of 5.
+					useLegacyPackaging = true
+				}
+			}
+
+			externalNativeBuild {
+				cmake {
+					// The client library is the biggest thing in the APK and
+					// nexora injects its own build of it into the client
+					// package after download (see the patch log's
+					// "+ libclient_android_arm64.so"), so a second copy here
+					// was never loaded. Dropping it takes the APK from tens of
+					// MB to ~2 MB. The menu stays: the engine's vgui2 loader
+					// finds libxashmenu in the *client* package's lib/, and
+					// nexora does not ship one - the patch log lists it with
+					// no "+", i.e. already present in the APK.
+					arguments "-DBUILD_CLIENT=OFF"
+				}
+			}
 		}
 	}
 
@@ -124,9 +163,20 @@ android {
 	// other pieces - the extras fork plus the yapb configs - did not match what
 	// the menu and the bot data loader look for, and the menu entries came out
 	// greyed out.
+	//
+	// googlePlay only: that flavor is distributed standalone, so it has to
+	// carry the game content itself. The git flavor is the one nexora ships,
+	// and nexora delivers the content as its own bundle instead - see
+	// sourceSets below, which drops assets/ for git entirely.
 	sourceSets {
 		getByName("main") {
 			assets.srcDirs += file("../../3rdparty/cs16client-assets")
+		}
+		getByName("git") {
+			// nexora installs sound/maps/gfx/touch/addons into the game
+			// directory from its own release assets, so shipping a second
+			// copy inside the APK only doubled the download.
+			assets.srcDirs = []
 		}
 	}
 }
