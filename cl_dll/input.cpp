@@ -26,7 +26,6 @@
 
 #include "vgui_parser.h"
 #include "com_weapons.h"
-#include "bhop.h"
 
 extern int g_weaponselect;
 extern cl_enginefunc_t gEngfuncs;
@@ -732,9 +731,6 @@ void DLLEXPORT CL_CreateMove ( float frametime, struct usercmd_s *cmd, int activ
 	// set button and flag bits
 	//
 	cmd->buttons = CL_ButtonBits( 1 );
-
-	// Hold-to-bhop assist and +gs ground strafe run on the raw buttons.
-	BHOP_CreateMove( cmd );
 
 	// If they're in a modal dialog, ignore the attack button.
 	if ( GetClientVoice()->IsInSquelchMode() )
