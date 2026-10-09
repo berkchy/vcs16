@@ -1214,15 +1214,32 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 	// Offsets run along the model's own axes rather than world ones, otherwise
 	// nudging the weapon sideways would also drag it backwards as the player
 	// turns.
+	//
+	// The vertical pair is the subtle one. offset_y runs along "up" and
+	// offset_z along "forward", and both of those tilt with pitch: at 60
+	// degrees down, forward points mostly at the floor, so a 16-unit forward
+	// offset lands 14 units up on screen and the weapon visibly jumps
+	// upward. Measured over the pitch range, a 20/16 pair swung the weapon
+	// between -4 and +25 units - which reads as the weapon flying off the
+	// screen whenever the player looks up or down.
+	//
+	// Real viewmodels are anchored to the camera but laid out in view space,
+	// so the placement has to be pitch-free: build the basis from yaw alone
+	// and apply all three offsets to that. Looking down then no longer drags
+	// the weapon across the screen, while turning still moves it correctly.
 	if( cl_vm_offset_x || cl_vm_offset_y || cl_vm_offset_z ||
 		cl_vm_pitch || cl_vm_yaw || cl_vm_roll )
 	{
-		vec3_t mfront, mside, mup;
-		AngleVectors( view->angles, mfront, mside, mup );
+		vec3_t mside, mup, fwd;
+
+		// Yaw-only basis. GoldSrc's positive pitch looks down, so zeroing
+		// PITCH is all it takes to stand the model upright.
+		vec3_t flatAngles = { 0.0f, view->angles[YAW], 0.0f };
+		AngleVectors( flatAngles, fwd, mside, mup );
 
 		if( cl_vm_offset_x ) VectorMA( view->origin, cl_vm_offset_x->value, mside, view->origin );
 		if( cl_vm_offset_y ) VectorMA( view->origin, cl_vm_offset_y->value, mup, view->origin );
-		if( cl_vm_offset_z ) VectorMA( view->origin, cl_vm_offset_z->value, mfront, view->origin );
+		if( cl_vm_offset_z ) VectorMA( view->origin, cl_vm_offset_z->value, fwd, view->origin );
 
 		if( cl_vm_pitch ) view->angles[PITCH] += cl_vm_pitch->value;
 		if( cl_vm_yaw ) view->angles[YAW] += cl_vm_yaw->value;
