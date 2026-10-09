@@ -146,7 +146,13 @@ android {
 					// finds libxashmenu in the *client* package's lib/, and
 					// nexora does not ship one - the patch log lists it with
 					// no "+", i.e. already present in the APK.
-					arguments "-DBUILD_CLIENT=OFF"
+					//
+					// The server side goes for the same reason: yapb and
+					// ReGameDLL_CS get pulled into the Android build graph but
+					// land in neither the APK nor nexora's Android bundle, so
+					// they were minutes of compiling for nothing. Nexora
+					// builds its own copies on the runner.
+					arguments "-DBUILD_CLIENT=OFF", "-DBUILD_SERVER=OFF"
 				}
 			}
 		}

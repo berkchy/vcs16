@@ -126,6 +126,16 @@ endif()
 
 set(GRAPHS_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/graphs")
 
+if(ANDROID)
+	# Nothing to stage: nexora ships the game content and installs the bot
+	# graphs from its own bundle, so the APK carries no assets at all. That
+	# also means nothing here needs the graphs - and yapb_graph_dl.py reaches
+	# out to the network at configure time, which was pure wall-clock on a
+	# build whose only job is linking the menu into a shell APK.
+	#
+	# The desktop branch below is unchanged and still packs extras.pk3.
+else()
+
 execute_process(
 	COMMAND ${Python_EXECUTABLE}
 	${CMAKE_CURRENT_SOURCE_DIR}/scripts/yapb_graph_dl.py
@@ -135,12 +145,6 @@ execute_process(
 set(EXTRAS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/cs16client-extras")
 set(YAPB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/yapb/cfg")
 
-if(ANDROID)
-	# Nothing to stage: the client APK's assets are the vanilla client's own
-	# directory (3rdparty/cs16client-assets, merged by Gradle) and it already
-	# carries the bot graphs. Copying them here as well made the asset merge fail
-	# with "Duplicate resources" on every map.
-else()
 	set(EXTRAS_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/extras.pk3")
 
 	execute_process(
