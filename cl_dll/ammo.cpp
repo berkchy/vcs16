@@ -1060,6 +1060,14 @@ int CHudAmmo::Draw(float flTime)
 		if( !( gHUD.m_iHideHUDDisplay & HIDEHUD_CROSSHAIR ) )
 			DrawCrosshair();
 
+		// Drop the sprite crosshair on the way out of the scope. SetCrosshair
+		// is otherwise only ever called from MsgFunc_CurWeapon, so it holds
+		// whatever the last weapon change put there - and the scoped branch
+		// below rewrites it every frame. Without this the zoomed sprite, or
+		// the on-target variant of it, stayed on screen after unscoping until
+		// the player switched weapon.
+		HideCrosshair();
+
 		DrawSpriteCrosshair();
 	}
 	else
