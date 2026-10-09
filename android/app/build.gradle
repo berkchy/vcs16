@@ -162,27 +162,19 @@ android {
 		buildConfig = true
 	}
 
-	// The engine resolves the mod assets from the *client* package, so the
-	// client APK has to carry them. The tree is the vanilla client's own assets
-	// directory (3rdparty/cs16client-assets, taken from CS16Client-Android.apk):
-	// the same files in the same folders. Everything that was assembled from
-	// other pieces - the extras fork plus the yapb configs - did not match what
-	// the menu and the bot data loader look for, and the menu entries came out
-	// greyed out.
-	//
-	// googlePlay only: that flavor is distributed standalone, so it has to
-	// carry the game content itself. The git flavor is the one nexora ships,
-	// and nexora delivers the content as its own bundle instead - see
-	// sourceSets below, which drops assets/ for git entirely.
+	// The game content (sound, maps, gfx, touch, addons - ~26 MB) lives in
+	// 3rdparty/cs16client-assets, the vanilla client's own assets directory.
+	// Only googlePlay carries it: that flavor is distributed standalone and
+	// has to ship the content itself. The git flavor is the APK nexora
+	// patches, and nexora installs the content into the game directory from
+	// its own bundle, so a second copy in the APK was pure download weight.
 	sourceSets {
-		getByName("main") {
+		// Deliberately not on "main": a flavor's own srcDirs are merged with
+		// the ones it inherits, so adding the tree there and clearing it on
+		// git did not drop anything - the APK still shipped 742 asset entries.
+		// Only googlePlay gets the content, from the flavor itself.
+		getByName("googlePlay") {
 			assets.srcDirs += file("../../3rdparty/cs16client-assets")
-		}
-		getByName("git") {
-			// nexora installs sound/maps/gfx/touch/addons into the game
-			// directory from its own release assets, so shipping a second
-			// copy inside the APK only doubled the download.
-			assets.srcDirs = []
 		}
 	}
 }
