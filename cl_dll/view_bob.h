@@ -21,6 +21,7 @@ struct bob_params_t
 	float	amt_vert;		// cl_bobamt_vert
 	float	amt_lat;		// cl_bobamt_lat
 	float	lower_amt;		// cl_bob_lower_amt
+	float	amp;			// cl_bob_amp, multiplies the movement, not the lower offset
 	bool	camera_bob;		// cl_bob_camera, classic styles also move the view origin
 };
 
@@ -36,10 +37,13 @@ struct bob_modern_state_t
 	float	last_speed;
 };
 
+// The classic step folds the whole thing into one number, so it has no
+// separate lower offset and reads back through V_PlaceClassicBob's constants.
 struct bob_modern_offsets_t
 {
-	float	vert;
-	float	hor;
+	float	vert;			// up/down movement, the oscillation only
+	float	hor;			// side to side movement
+	float	lower;			// constant speed-proportional drop, no cycle
 };
 
 // Where a bob step puts the view model: offsets in world units and angles in degrees.

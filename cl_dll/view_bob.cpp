@@ -4,13 +4,23 @@
 #include "view_bob.h"
 
 // Coefficients the offsets reach the view model through.
+//
+// The modern scales used to be 0.4 / 0.1 / 0.2 for everything, but vert also
+// carried the speed-proportional lower offset: at a run that term is an order
+// of magnitude larger than the oscillation, so the movement that survived was
+// ~0.1 world units - sub-pixel, and cl_viewbob 2 looked like it did nothing.
+// The oscillation and the lower drop are scaled apart now, so the movement is
+// sized on its own and the lower drop keeps the offset it always had.
 #define BOB_CLASSIC_FORWARD_SCALE	0.4f
 #define BOB_CLASSIC_SWAY_PITCH		0.3f
 #define BOB_CLASSIC_SWAY_YAW		0.5f
 #define BOB_CLASSIC_SWAY_ROLL		1.0f
-#define BOB_MODERN_FORWARD_SCALE	0.4f
-#define BOB_MODERN_UP_SCALE			0.1f
-#define BOB_MODERN_SIDE_SCALE		0.2f
+#define BOB_MODERN_FORWARD_SCALE	3.6f
+#define BOB_MODERN_UP_SCALE		0.8f
+#define BOB_MODERN_SIDE_SCALE		1.2f
+// Unchanged from the old combined path, so the resting drop looks the same.
+#define BOB_MODERN_LOWER_SCALE		0.4f
+#define BOB_MODERN_LOWER_UP_SCALE	0.1f
 
 #define BOB_PI						3.14159265358979323846f
 
@@ -85,7 +95,7 @@ bob_modern_offsets_t V_StepModernBob( bob_modern_state_t &state, const bob_param
 
 	if ( bob_cycle <= 0.0f )
 	{
-		bob_modern_offsets_t none = { 0.0f, 0.0f };
+		bob_modern_offsets_t none = { 0.0f, 0.0f, 0.0f };
 		return none;
 	}
 
@@ -95,7 +105,7 @@ bob_modern_offsets_t V_StepModernBob( bob_modern_state_t &state, const bob_param
 
 	float vert = speed * ( bob_scale * params.amt_vert );
 	vert = vert * 0.3f + vert * 0.7f * sinf( cycle );
-	vert = ClampBobFinite( vert - lower_amt, -8.0f, 4.0f );
+	vert = ClampBobFinite( vert * params.amp, -8.0f, 4.0f );
 
 	// Kept verbatim from the original: the truncation gives half cycles, so this is
 	// deliberately not BobPhase( bob_time, bob_cycle * 2 ).
@@ -105,9 +115,9 @@ bob_modern_offsets_t V_StepModernBob( bob_modern_state_t &state, const bob_param
 
 	float hor = speed * ( bob_scale * params.amt_lat );
 	hor = hor * 0.3f + hor * 0.7f * sinf( cycle );
-	hor = ClampBobFinite( hor, -7.0f, 4.0f );
+	hor = ClampBobFinite( hor * params.amp, -7.0f, 4.0f );
 
-	bob_modern_offsets_t result = { vert, hor };
+	bob_modern_offsets_t result = { vert, hor, lower_amt };
 	return result;
 }
 
@@ -136,8 +146,14 @@ bob_offsets_t V_PlaceModernBob( const bob_modern_offsets_t &offsets )
 {
 	bob_offsets_t placed;
 
-	placed.forward = offsets.vert * BOB_MODERN_FORWARD_SCALE;
-	placed.up = offsets.vert * BOB_MODERN_UP_SCALE;
+	// The oscillation and the lower drop reach the model through separate
+	// coefficients: sharing one made the drop, which is the larger number,
+	// decide the size of the movement as well. The drop keeps its sign so the
+	// resting placement while moving is where it always was.
+	placed.forward = offsets.vert * BOB_MODERN_FORWARD_SCALE
+		- offsets.lower * BOB_MODERN_LOWER_SCALE;
+	placed.up = offsets.vert * BOB_MODERN_UP_SCALE
+		- offsets.lower * BOB_MODERN_LOWER_UP_SCALE;
 	placed.side = offsets.hor * BOB_MODERN_SIDE_SCALE;
 	placed.pitch = 0.0f;
 	placed.yaw = 0.0f;

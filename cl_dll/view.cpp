@@ -90,6 +90,15 @@ cvar_t	*cl_weaponlag;
 cvar_t	*cl_quakeguns;
 cvar_t	*cl_viewmodel_sway;
 cvar_t	*cl_viewmodel_movebob;
+cvar_t	*cl_bob_amp;
+// Fixed view model placement, in view model units and degrees. Applied after
+// the bob so it does not swing with it.
+cvar_t	*cl_vm_offset_x;
+cvar_t	*cl_vm_offset_y;
+cvar_t	*cl_vm_offset_z;
+cvar_t	*cl_vm_pitch;
+cvar_t	*cl_vm_yaw;
+cvar_t	*cl_vm_roll;
 
 // These cvars are not registered (so users can't cheat), so set the ->value field directly
 // Register these cvars in V_Init() if needed for easy tweaking
@@ -1146,6 +1155,27 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 	}
 
 	// View model bob. Styles 0 and 1 keep the stock sway, style 2 is the CSGO bob.
+	//
+	// Style 1 (CLASSIC_SWAY) leans the view model with the classic bob instead
+	// of only pushing the camera up and down. V_PlaceClassicBob has always been
+	// written for this and was never called, so the two classic styles were
+	// indistinguishable in game.
+	if ( gHUD.cl_viewbob && (int)gHUD.cl_viewbob->value == BOBSTYLE_CLASSIC_SWAY )
+	{
+		bob_offsets_t sway = V_PlaceClassicBob( bob, BOBSTYLE_CLASSIC_SWAY );
+
+		vec3_t sforward, sside, sup;
+		AngleVectors( view->angles, sforward, sside, sup );
+
+		VectorMA( view->origin, sway.forward, sforward, view->origin );
+		VectorMA( view->origin, sway.side, sside, view->origin );
+		view->origin[2] += sway.up;
+
+		view->angles[PITCH] += sway.pitch;
+		view->angles[YAW] += sway.yaw;
+		view->angles[ROLL] += sway.roll;
+	}
+
 	if ( gHUD.cl_viewbob && (int)gHUD.cl_viewbob->value == BOBSTYLE_MODERN )
 	{
 		static bob_modern_state_t s_ModernBob;
@@ -1158,6 +1188,7 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 		params.amt_vert = cl_bobamt_vert->value;
 		params.amt_lat = cl_bobamt_lat->value;
 		params.lower_amt = cl_bob_lower_amt->value;
+		params.amp = cl_bob_amp ? cl_bob_amp->value : 1.0f;
 		params.camera_bob = cl_bob_camera->value != 0.0f;
 
 		float flSpeed = sqrt( pparams->simvel[0] * pparams->simvel[0] + pparams->simvel[1] * pparams->simvel[1] );
@@ -1177,6 +1208,25 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 			VectorMA( pparams->vieworg, offsets.forward, front, pparams->vieworg );
 			VectorMA( pparams->vieworg, offsets.side, side, pparams->vieworg );
 		}
+	}
+
+	// Fixed placement, last so it stays put while everything above it moves.
+	// Offsets run along the model's own axes rather than world ones, otherwise
+	// nudging the weapon sideways would also drag it backwards as the player
+	// turns.
+	if( cl_vm_offset_x || cl_vm_offset_y || cl_vm_offset_z ||
+		cl_vm_pitch || cl_vm_yaw || cl_vm_roll )
+	{
+		vec3_t mfront, mside, mup;
+		AngleVectors( view->angles, mfront, mside, mup );
+
+		if( cl_vm_offset_x ) VectorMA( view->origin, cl_vm_offset_x->value, mside, view->origin );
+		if( cl_vm_offset_y ) VectorMA( view->origin, cl_vm_offset_y->value, mup, view->origin );
+		if( cl_vm_offset_z ) VectorMA( view->origin, cl_vm_offset_z->value, mfront, view->origin );
+
+		if( cl_vm_pitch ) view->angles[PITCH] += cl_vm_pitch->value;
+		if( cl_vm_yaw ) view->angles[YAW] += cl_vm_yaw->value;
+		if( cl_vm_roll ) view->angles[ROLL] += cl_vm_roll->value;
 	}
 
 	if ( gHUD.cl_viewbob && gHUD.cl_viewbob->value )
@@ -2031,4 +2081,19 @@ void V_Init (void)
 
 	cl_viewmodel_sway		= gEngfuncs.pfnRegisterVariable( "cl_viewmodel_sway", "0.5", FCVAR_ARCHIVE );
 	cl_viewmodel_movebob	= gEngfuncs.pfnRegisterVariable( "cl_viewmodel_movebob", "0.3", FCVAR_ARCHIVE );
+
+	// Multiplies the bob movement on its own; cl_bob_lower_amt still decides
+	// how far the weapon rests down while moving. 1.0 is what the built-in
+	// scales give, raise it for a heavier swing or drop it to near zero.
+	cl_bob_amp		= gEngfuncs.pfnRegisterVariable( "cl_bob_amp", "1.0", FCVAR_ARCHIVE );
+
+	// View model placement. Offsets are view model units along the model's own
+	// right / up / forward, so they keep pointing the same way whatever the
+	// player is looking at. Angles are degrees on pitch / yaw / roll.
+	cl_vm_offset_x		= gEngfuncs.pfnRegisterVariable( "cl_vm_offset_x", "0", FCVAR_ARCHIVE );
+	cl_vm_offset_y		= gEngfuncs.pfnRegisterVariable( "cl_vm_offset_y", "0", FCVAR_ARCHIVE );
+	cl_vm_offset_z		= gEngfuncs.pfnRegisterVariable( "cl_vm_offset_z", "0", FCVAR_ARCHIVE );
+	cl_vm_pitch		= gEngfuncs.pfnRegisterVariable( "cl_vm_pitch", "0", FCVAR_ARCHIVE );
+	cl_vm_yaw		= gEngfuncs.pfnRegisterVariable( "cl_vm_yaw", "0", FCVAR_ARCHIVE );
+	cl_vm_roll		= gEngfuncs.pfnRegisterVariable( "cl_vm_roll", "0", FCVAR_ARCHIVE );
 }
