@@ -1218,7 +1218,13 @@ void CHudScoreboard2 :: DeathMsg( int killer, int victim )
 
 void CHudScoreboard2 :: UserCmd_ShowScores( void )
 {
-	m_bForceDraw = false;
+	// m_bForceDraw was cleared here, which is backwards: this is the one path
+	// that opens the board, and ShouldDrawScoreboard() only consults it before
+	// m_bShowscoresHeld. Clearing it meant the state that makes the scoreboard
+	// draw, and the IN_SCORE bit the engine keys ping delivery off, never got
+	// set - the board came up, and every row read 0 ms because svc_pings is
+	// only sent to clients holding IN_SCORE (sv_client.c SV_ShouldUpdatePing).
+	m_bForceDraw = true;
 	m_bShowscoresHeld = true;
 	m_iFlags |= HUD_DRAW;
 }
