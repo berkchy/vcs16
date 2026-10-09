@@ -369,6 +369,18 @@ void CHud :: Init( void )
 	m_iFOV = 0;
 	cl_smoothfov = CVAR_CREATE( "cl_smoothfov", "0.25", FCVAR_ARCHIVE );
 
+	// The zoom state has to start out pointing at the default FOV. Think() reads
+	// the target and the start time on every frame, but the first SetFOV message
+	// from the server only arrives once the player is spawned. Left as they
+	// were, the smoothing branch interpolated m_iFOV from uninitialised members,
+	// and the ammo hud reads anything under 90 as "scoped" - so the zoomed "+"
+	// crosshair could sit on screen with no weapon involved and the viewmodel
+	// was suppressed by the same check.
+	m_flZoomTargetFOV = default_fov->value;
+	m_flZoomStartFOV = m_iFOV;
+	m_flZoomStartTime = 0.0f;
+	m_flLastDefaultFOV = default_fov->value;
+
 	m_pSpriteList = NULL;
 
 	// Clear any old HUD list

@@ -1052,6 +1052,9 @@ public:
 	void AddHudElem(CHudBase *p);
 
 	inline float GetSensitivity() { return m_flMouseSensitivity; }
+	// The unscoped FOV, for the places that have to tell "zoomed in" from
+	// "not zoomed in" without reaching for the private cvar itself.
+	inline float GetDefaultFOV() { return default_fov ? default_fov->value : 90.0f; }
 	inline HSPRITE GetSprite( int index )
 	{
 		assert( index >= -1 && index <= m_iSpriteCount );
@@ -1116,6 +1119,10 @@ public:
 	float	m_flZoomTargetFOV;
 	float	m_flZoomStartFOV;
 	float	m_flZoomStartTime;
+	// Last value of default_fov that Think() acted on, so a change typed in the
+	// console can be picked up and applied instead of waiting for the server to
+	// send the next SetFOV message.
+	float	m_flLastDefaultFOV;
 	int		m_Teamplay;
 	cvar_t *m_pCvarDraw;
 	cvar_t *fastsprites;

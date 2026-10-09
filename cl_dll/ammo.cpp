@@ -629,7 +629,11 @@ int CHudAmmo::MsgFunc_CurWeapon(const char *pszName, int iSize, void *pbuf )
 
 	m_pWeapon = pWeapon;
 
-	if( gHUD.m_iFOV >= 90 )
+	// Which crosshair set to draw follows the current FOV against the
+	// default, not against a hardcoded 90: with default_fov below 90 an
+	// unscoped player sat permanently in the zoomed branch, so the "+" stayed
+	// on screen and HideCrosshair() was never reached.
+	if( gHUD.m_iFOV >= gHUD.GetDefaultFOV() )
 	{ // normal crosshairs
 		if( fOnTarget && m_pWeapon->hAutoaim )
 			SetCrosshair( m_pWeapon->hAutoaim, m_pWeapon->rcAutoaim, 255, 255, 255 );

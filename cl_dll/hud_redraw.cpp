@@ -54,6 +54,38 @@ void CHud::Think(void)
 			pList->p->Think();
 	}
 
+	// default_fov is ours, not the server's: typing it in the console has to
+	// take effect right away. The FOV only ever moves when MsgFunc_SetFOV runs,
+	// so without this a new value sat there ignored until the player next
+	// scoped, switched weapon or the round restarted.
+	if( default_fov->value != m_flLastDefaultFOV )
+	{
+		// Only when not zoomed in. A zoomed target belongs to the server's
+		// SetFOV and is about to be replaced by the message that unscopes, so
+		// retargeting it now would only be undone a frame later.
+		if( m_flZoomTargetFOV >= m_flLastDefaultFOV )
+		{
+			m_flZoomTargetFOV = default_fov->value;
+			m_flZoomStartFOV = m_iFOV;
+			m_flZoomStartTime = gHUD.m_flTime;
+
+			// With smoothing off the target above is never read: that branch
+			// drives m_iFOV straight from the previous frame's g_lastFOV, so
+			// seed it here or the new default waits for the next server
+			// message just as before.
+			if( !( cl_smoothfov && cl_smoothfov->value > 0 ) )
+				m_iFOV = m_flZoomTargetFOV;
+		}
+
+		m_flLastDefaultFOV = default_fov->value;
+	}
+
+	// Belt and braces: a target of zero means "no valid FOV yet" and would
+	// interpolate m_iFOV towards nothing and leave the crosshair in its zoomed
+	// state forever.
+	if( m_flZoomTargetFOV <= 0 )
+		m_flZoomTargetFOV = default_fov->value;
+
 	if ( cl_smoothfov && cl_smoothfov->value > 0 )
 	{
 		// cl_smoothfov is the zoom transition time in seconds (0 disables smoothing)
