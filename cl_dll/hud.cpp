@@ -384,7 +384,8 @@ void CHud :: Init( void )
 	hud_radar_y     = CVAR_CREATE( "hud_radar_y",     "auto", FCVAR_ARCHIVE );
 	hud_timer_x     = CVAR_CREATE( "hud_timer_x",     "auto", FCVAR_ARCHIVE );
 	hud_timer_y     = CVAR_CREATE( "hud_timer_y",     "auto", FCVAR_ARCHIVE );
-	CVAR_CREATE( "hud_resethudlayout", "0", FCVAR_ARCHIVE );
+	// Command only, no matching cvar: the engine refuses a command whose name
+	// is already a variable, and the cvar would never have been read anyway.
 	gEngfuncs.pfnAddCommand( "hud_resethudlayout", __ResetHudLayout );
 	hud_colored  = CVAR_CREATE( "hud_colored", "0", FCVAR_ARCHIVE );
 	cl_righthand = CVAR_CREATE( "cl_righthand", "1", FCVAR_ARCHIVE );
