@@ -1117,6 +1117,12 @@ int CHudAmmo::Draw(float flTime)
 	// Does this weapon have a clip?
 	y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight/2;
 
+	// Placement offset; "auto" (the default) keeps the position above. Applied
+	// once, here, because the clip and reserve branches below each recompute x
+	// from ScreenWidth and y is shared by both rows.
+	int ammoX = HUD_OFFSET_X( hud_ammo_x, 0 );
+	y = HUD_OFFSET_Y( hud_ammo_y, y );
+
 	// Does weapon have any ammo at all?
 	if (m_pWeapon->iAmmoType > 0)
 	{
@@ -1126,7 +1132,7 @@ int CHudAmmo::Draw(float flTime)
 		{
 			// room for the number and the '|' and the current ammo
 			
-			x = ScreenWidth - (8 * AmmoWidth) - iIconWidth;
+			x = ScreenWidth - (8 * AmmoWidth) - iIconWidth + ammoX;
 			x = DrawUtils::DrawHudNumber(x, y, iFlags | DHN_3DIGITS, pw->iClip, r, g, b);
 
 			int iBarWidth =  AmmoWidth/10;
@@ -1149,7 +1155,7 @@ int CHudAmmo::Draw(float flTime)
 		else
 		{
 			// SPR_Draw a bullets only line
-			x = ScreenWidth - 4 * AmmoWidth - iIconWidth;
+			x = ScreenWidth - 4 * AmmoWidth - iIconWidth + ammoX;
 			x = DrawUtils::DrawHudNumber(x, y, iFlags | DHN_3DIGITS, gWR.CountAmmo(pw->iAmmoType), r, g, b);
 		}
 
@@ -1168,7 +1174,7 @@ int CHudAmmo::Draw(float flTime)
 		if ((pw->iAmmo2Type != 0) && (gWR.CountAmmo(pw->iAmmo2Type) > 0))
 		{
 			y -= gHUD.m_iFontHeight + gHUD.m_iFontHeight/4;
-			x = ScreenWidth - 4 * AmmoWidth - iIconWidth;
+			x = ScreenWidth - 4 * AmmoWidth - iIconWidth + ammoX;
 			x = DrawUtils::DrawHudNumber(x, y, iFlags|DHN_3DIGITS, gWR.CountAmmo(pw->iAmmo2Type), r, g, b);
 
 			// Draw the ammo Icon

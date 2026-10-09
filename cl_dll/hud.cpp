@@ -45,6 +45,43 @@ cvar_t *cl_fog_g;
 cvar_t *cl_fog_b;
 cvar_t *cl_fog_density;
 
+cvar_t *hud_health_x, *hud_health_y;
+cvar_t *hud_armor_x, *hud_armor_y;
+cvar_t *hud_money_x, *hud_money_y;
+cvar_t *hud_ammo_x, *hud_ammo_y;
+cvar_t *hud_radar_x, *hud_radar_y;
+cvar_t *hud_timer_x, *hud_timer_y;
+
+/*
+==================
+__ResetHudLayout
+
+Puts every placement cvar back to "auto", which is the built-in layout. Bound
+to a command rather than a cvar toggle so it can be typed once and act, and so
+it does not need a special case in Think().
+*/
+static const char *hud_layout_cvars[] =
+{
+	"hud_health_x", "hud_health_y",
+	"hud_armor_x", "hud_armor_y",
+	"hud_money_x", "hud_money_y",
+	"hud_ammo_x", "hud_ammo_y",
+	"hud_radar_x", "hud_radar_y",
+	"hud_timer_x", "hud_timer_y",
+};
+
+static void __ResetHudLayout( void )
+{
+	int i;
+
+	// Cvar_SetValue takes the name, not the cvar_t*. The archive bit stays, so
+	// "auto" gets written to config.cfg - harmless, since auto is the same as
+	// the value a fresh install has, and it keeps the reset itself persisted
+	// across map changes.
+	for ( i = 0; i < (int)( sizeof( hud_layout_cvars ) / sizeof( hud_layout_cvars[0] ) ); i++ )
+		gEngfuncs.Cvar_SetValue( hud_layout_cvars[i], HUD_OFFSET_AUTO );
+}
+
 extern client_sprite_t *GetSpriteList(client_sprite_t *pList, const char *psz, int iRes, int iCount);
 
 // Team Colors
@@ -330,6 +367,25 @@ void CHud :: Init( void )
 	CVAR_CREATE( "buymenu_stayon", "0", FCVAR_ARCHIVE );
 
 	hud_textmode = CVAR_CREATE( "hud_textmode", "0", FCVAR_ARCHIVE );
+
+	// Element placement. "auto" keeps the built-in layout position; anything
+	// else is a pixel offset from it. Offsets rather than absolute coordinates
+	// so a config tuned on one screen size does not land in the wrong corner on
+	// another.
+	hud_health_x    = CVAR_CREATE( "hud_health_x",    "auto", FCVAR_ARCHIVE );
+	hud_health_y    = CVAR_CREATE( "hud_health_y",    "auto", FCVAR_ARCHIVE );
+	hud_armor_x     = CVAR_CREATE( "hud_armor_x",     "auto", FCVAR_ARCHIVE );
+	hud_armor_y     = CVAR_CREATE( "hud_armor_y",     "auto", FCVAR_ARCHIVE );
+	hud_money_x     = CVAR_CREATE( "hud_money_x",     "auto", FCVAR_ARCHIVE );
+	hud_money_y     = CVAR_CREATE( "hud_money_y",     "auto", FCVAR_ARCHIVE );
+	hud_ammo_x      = CVAR_CREATE( "hud_ammo_x",      "auto", FCVAR_ARCHIVE );
+	hud_ammo_y      = CVAR_CREATE( "hud_ammo_y",      "auto", FCVAR_ARCHIVE );
+	hud_radar_x     = CVAR_CREATE( "hud_radar_x",     "auto", FCVAR_ARCHIVE );
+	hud_radar_y     = CVAR_CREATE( "hud_radar_y",     "auto", FCVAR_ARCHIVE );
+	hud_timer_x     = CVAR_CREATE( "hud_timer_x",     "auto", FCVAR_ARCHIVE );
+	hud_timer_y     = CVAR_CREATE( "hud_timer_y",     "auto", FCVAR_ARCHIVE );
+	CVAR_CREATE( "hud_resethudlayout", "0", FCVAR_ARCHIVE );
+	gEngfuncs.pfnAddCommand( "hud_resethudlayout", __ResetHudLayout );
 	hud_colored  = CVAR_CREATE( "hud_colored", "0", FCVAR_ARCHIVE );
 	cl_righthand = CVAR_CREATE( "cl_righthand", "1", FCVAR_ARCHIVE );
 	cl_weather   = CVAR_CREATE( "cl_weather", "1", FCVAR_ARCHIVE );

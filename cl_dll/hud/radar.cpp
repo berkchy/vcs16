@@ -289,15 +289,22 @@ int CHudRadar::Draw(float flTime)
 	int iTeamNumber = g_PlayerExtraInfo[ gHUD.m_Scoreboard.m_iPlayerNum ].teamnumber;
 	int r, g, b;
 
+	// Everything the radar draws - the dish, the player blips, the location
+	// label - is laid out from the top-left corner, so one shift of the origin
+	// moves the whole widget. Doing it here rather than at each call site keeps
+	// the blips and the dish from drifting apart.
+	int radarX = HUD_OFFSET_X( hud_radar_x, 0 );
+	int radarY = HUD_OFFSET_Y( hud_radar_y, 0 );
+
 	if( cl_radartype->value )
 	{
 		SPR_Set(m_hRadarOpaque.spr, 200, 200, 200);
-		SPR_DrawHoles(0, 0, 0, &m_hRadarOpaque.rect);
+		SPR_DrawHoles(radarX, radarY, 0, &m_hRadarOpaque.rect);
 	}
 	else
 	{
 		SPR_Set( m_hRadar.spr, 25, 75, 25 );
-		SPR_DrawAdditive( 0, 0, 0, &m_hRadarOpaque.rect );
+		SPR_DrawAdditive( radarX, radarY, 0, &m_hRadarOpaque.rect );
 	}
 
 	if( bUseRenderAPI )

@@ -98,6 +98,10 @@ int CHudTimer::Draw( float fTime )
 	int x = (ScreenWidth - totalWidth) / 2;
 	int y = ScreenHeight - 1.5 * gHUD.m_iFontHeight;
 
+	// Placement offset; "auto" (the default) keeps the position above.
+	x = HUD_OFFSET_X( hud_timer_x, x );
+	y = HUD_OFFSET_Y( hud_timer_y, y );
+
 	SPR_Set(gHUD.GetSprite(m_HUD_timer), r, g, b);
 	SPR_DrawAdditive(0, x, y, &gHUD.GetSpriteRect(m_HUD_timer));
 	x += iWatchWidth;

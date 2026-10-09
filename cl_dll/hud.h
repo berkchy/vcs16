@@ -140,6 +140,56 @@ struct HUDLIST {
 	HUDLIST		*pNext;
 };
 
+/*
+====================
+HUD element placement
+
+Every movable HUD element gets an "_x" and a "_y" cvar so its position can be
+adjusted without touching the layout code. The defaults are the values that
+were previously hard-coded, so an existing config sees no change.
+
+"auto" means the element keeps the layout's own position. Anything else is an
+offset in pixels from that position, which is what makes the cvar usable on
+any screen size: a fixed absolute coordinate works on the resolution it was
+tuned on and lands in the wrong corner on every other one.
+
+Use "hud_resethudlayout" to get the built-in positions back.
+*/
+extern cvar_t *hud_health_x, *hud_health_y;
+extern cvar_t *hud_armor_x, *hud_armor_y;
+extern cvar_t *hud_money_x, *hud_money_y;
+extern cvar_t *hud_ammo_x, *hud_ammo_y;
+extern cvar_t *hud_radar_x, *hud_radar_y;
+extern cvar_t *hud_timer_x, *hud_timer_y;
+
+/*
+==========
+HUD offsets
+
+Applies an element's cvar offset to a layout position, in pixels. Both cvars
+default to "auto" (a large negative sentinel), so the default path is a no-op
+rather than a comparison.
+*/
+#define HUD_OFFSET_AUTO (-99999.0f)
+
+inline float HUD_OffsetValue( cvar_t *cvar )
+{
+	if ( !cvar )
+		return 0.0f;
+
+	float v = cvar->value;
+	// The sentinel is below anything a player would type, so treating it as
+	// zero here means "auto" and a real offset are indistinguishable to the
+	// caller.
+	return ( v <= HUD_OFFSET_AUTO ) ? 0.0f : v;
+}
+
+// One axis at a time: the elements below compute their position with plain
+// arithmetic on x and y, so a helper returning both would mean rewriting each
+// of them as a tuple.
+#define HUD_OFFSET_X( cvarX, x ) ( ( x ) + (int)HUD_OffsetValue( cvarX ) )
+#define HUD_OFFSET_Y( cvarY, y ) ( ( y ) + (int)HUD_OffsetValue( cvarY ) )
+
 
 
 //

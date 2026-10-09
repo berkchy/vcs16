@@ -248,6 +248,18 @@ int CHudStatusBar :: Draw( float fTime )
 			y = (ScreenHeight / 2) + (TextHeight * hud_centerid->value );
 		}
 
+		// Placement offset. Health and armor share one string on this line, so
+		// they move together - splitting them would mean splitting the layout
+		// the server drives, which is not ours to change. Set both cvars to the
+		// same value to nudge the pair as one.
+		if ( i == STATUSBAR_ID_LINE )
+		{
+			x = HUD_OFFSET_X( hud_health_x, x );
+			y = HUD_OFFSET_Y( hud_health_y, y );
+			x = HUD_OFFSET_X( hud_armor_x, x );
+			y = HUD_OFFSET_Y( hud_armor_y, y );
+		}
+
 		if ( m_pflNameColors[i] )
 			DrawUtils::SetConsoleTextColor( m_pflNameColors[i][0], m_pflNameColors[i][1], m_pflNameColors[i][2] );
 

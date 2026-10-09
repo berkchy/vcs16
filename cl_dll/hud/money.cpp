@@ -84,6 +84,10 @@ int CHudMoney::Draw(float flTime)
 	int x = ScreenWidth - iDollarWidth * 7;
 	int y = MONEY_YPOS;
 
+	// Placement offset; "auto" (the default) keeps the position above.
+	x = HUD_OFFSET_X( hud_money_x, x );
+	y = HUD_OFFSET_Y( hud_money_y, y );
+
 	if( m_iBlinkAmt )
 	{
 		m_fBlinkTime += gHUD.m_flTimeDelta;
