@@ -4,8 +4,27 @@
 
 #include "vgui2_loader.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+// The load result has to be visible in engine.log, and on Android stderr goes
+// to logcat where nobody is looking. The engine console is always there by the
+// time this runs: VGUI2_SetEngineFactory() is called from Initialize().
+#include "cl_dll.h"
+
+static void VGUI2_Log( const char *fmt, ... )
+{
+	char message[512];
+	va_list args;
+
+	va_start( args, fmt );
+	vsnprintf( message, sizeof( message ), fmt, args );
+	va_end( args );
+
+	gEngfuncs.Con_Printf( "%s", message );
+	fprintf( stderr, "%s", message );
+}
 
 #ifdef _WIN32
 #include <windows.h>
@@ -50,7 +69,7 @@ const vgui2_bridge_t *VGUI2_Get( void )
 
 	if( !handle )
 	{
-		fprintf( stderr, "VGUI2: %s not present, keeping the text scoreboard\n", VGUI2_LIBNAME );
+		VGUI2_Log( "VGUI2: %s not present, keeping the text scoreboard\n", VGUI2_LIBNAME );
 		return NULL;
 	}
 
@@ -64,14 +83,14 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	if( !bridge.pfnSetEngineFactory || !bridge.pfnIsAvailable ||
 		!bridge.pfnShowBoard || !bridge.pfnHideBoard )
 	{
-		fprintf( stderr, "VGUI2: %s does not export the scoreboard bridge, keeping the text scoreboard\n", VGUI2_LIBNAME );
+		VGUI2_Log( "VGUI2: %s does not export the scoreboard bridge, keeping the text scoreboard\n", VGUI2_LIBNAME );
 		memset( &bridge, 0, sizeof( bridge ) );
 		return NULL;
 	}
 
 	// The handle is intentionally leaked: the panel keeps calling into the
 	// library until the process exits.
-	fprintf( stderr, "VGUI2: scoreboard bridge loaded from %s\n", VGUI2_LIBNAME );
+	VGUI2_Log( "VGUI2: scoreboard bridge loaded from %s\n", VGUI2_LIBNAME );
 	return &bridge;
 #else
 	return NULL;
