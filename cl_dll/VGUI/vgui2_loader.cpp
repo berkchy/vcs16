@@ -11,6 +11,9 @@
 // The load result has to be visible in engine.log, and on Android stderr goes
 // to logcat where nobody is looking. The engine console is always there by the
 // time this runs: VGUI2_SetEngineFactory() is called from Initialize().
+// wrect.h first, for the same reason hud.h orders it that way: cl_dll.h pulls
+// in the engine headers that name wrect_t without including it themselves.
+#include "wrect.h"
 #include "cl_dll.h"
 
 static void VGUI2_Log( const char *fmt, ... )
