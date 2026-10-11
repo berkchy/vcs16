@@ -40,7 +40,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define COLOR_PING_GOOD		0xFF6CC06C
 #define COLOR_PING_FAIR		uiPromptTextColor
 #define COLOR_PING_POOR		0xFFC06040
-#define COLOR_BOTS			0xFFD08C50
 #define COLOR_FULL			0xFFE0A030
 #define COLOR_DIM			0xFF707070
 #define COLOR_TABLE_STROKE	0xFF383838
@@ -64,7 +63,7 @@ enum
 	COLUMN_NAME,
 	COLUMN_MAP,
 	COLUMN_PLAYERS,
-	COLUMN_BOTS,
+	COLUMN_IP,
 	COLUMN_PING,
 	COLUMN_COUNT
 };
@@ -125,7 +124,7 @@ struct server_t
 	char name[64];
 	char mapname[64];
 	char clientsstr[64];
-	char botsstr[16];
+	char ipstr[32];
 	char pingstr[64];
 	bool havePassword;
 	bool isLegacy;
@@ -185,16 +184,16 @@ struct server_t
 		return PingCmpAscend( b, a );
 	}
 
-	static int BotsCmpAscend( const void *_a, const void *_b )
+	static int IpCmpAscend( const void *_a, const void *_b )
 	{
 		const server_t *a = (const server_t*)_a;
 		const server_t *b = (const server_t*)_b;
 
-		return atoi( a->botsstr ) - atoi( b->botsstr );
+		return colorstricmp( a->ipstr, b->ipstr );
 	}
-	static int BotsCmpDescend( const void *a, const void *b )
+	static int IpCmpDescend( const void *a, const void *b )
 	{
-		return BotsCmpAscend( b, a );
+		return IpCmpAscend( b, a );
 	}
 };
 
@@ -206,7 +205,7 @@ public:
 	void Update() override;
 	int GetColumns() const override
 	{
-		// protocol badge, lock, name, map, players, bots, ping
+		// protocol badge, lock, name, map, players, address, ping
 		return 7;
 	}
 	int GetRows() const override
@@ -234,7 +233,7 @@ public:
 		case COLUMN_NAME: return servers[line].name;
 		case COLUMN_MAP: return servers[line].mapname;
 		case COLUMN_PLAYERS: return servers[line].clientsstr;
-		case COLUMN_BOTS: return servers[line].botsstr;
+		case COLUMN_IP: return servers[line].ipstr;
 		case COLUMN_PING: return servers[line].pingstr;
 		default: return NULL;
 		}
@@ -283,17 +282,12 @@ public:
 				return true;
 			}
 			break;
-		case COLUMN_BOTS:
-			// zero bots is the normal case, no need to shout it out
-			if( !atoi( servers[line].botsstr ))
-				textColor = COLOR_DIM;
-			else
-			{
-				textColor = COLOR_BOTS;
-				force = true;
-				return true;
-			}
-			break;
+		case COLUMN_IP:
+			// the address is reference data, never the reason a row is
+			// picked, so it stays quiet next to the colored ping
+			textColor = COLOR_DIM;
+			force = true;
+			return true;
 		case COLUMN_PLAYERS:
 			if( atoi( Info_ValueForKey( servers[line].info, "maxcl" )) == atoi( Info_ValueForKey( servers[line].info, "numcl" )))
 			{
@@ -385,6 +379,7 @@ public:
 	CMenuSwitch tabs;
 	CMenuField masterAddress;
 
+	CMenuYesNoMessageBox addMasterBox;
 	CMenuYesNoMessageBox msgBox;
 	CMenuTable	gameList;
 	CMenuGameListModel gameListModel;
@@ -488,9 +483,9 @@ bool CMenuGameListModel::Sort(int column, bool ascend)
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
 			ascend ? server_t::ClientCmpAscend : server_t::ClientCmpDescend );
 		return true;
-	case COLUMN_BOTS:
+	case COLUMN_IP:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
-			ascend ? server_t::BotsCmpAscend : server_t::BotsCmpDescend );
+			ascend ? server_t::IpCmpAscend : server_t::IpCmpDescend );
 		return true;
 	case COLUMN_PING:
 		qsort( servers.Base(), servers.Count(), sizeof( server_t ),
@@ -513,7 +508,6 @@ static void ParseServerInfo( server_t &server )
 	Q_strncpy( server.name, Info_ValueForKey( info, "host" ), 64 );
 	Q_strncpy( server.mapname, Info_ValueForKey( info, "map" ), 64 );
 	snprintf( server.clientsstr, 64, "%s\\%s", Info_ValueForKey( info, "numcl" ), Info_ValueForKey( info, "maxcl" ) );
-	Q_strncpy( server.botsstr, Info_ValueForKey( info, "bots" ), sizeof( server.botsstr ));
 	snprintf( server.pingstr, 64, "%.f ms", server.ping * 1000 );
 
 	const char *passwd = Info_ValueForKey( info, "password" );
@@ -524,6 +518,12 @@ static void ParseServerInfo( server_t &server )
 
 	const char *gs = Info_ValueForKey( info, "gs" );
 	server.isGoldSrc = gs[0] && !stricmp( gs, "1" );
+
+	// plain address column: the port is almost always the default one, so it
+	// only adds noise. the menu sees the GoldSrc view of netadr_t, so this is
+	// the IPv4 form and nothing else
+	snprintf( server.ipstr, sizeof( server.ipstr ), "%d.%d.%d.%d",
+		server.adr.ip[0], server.adr.ip[1], server.adr.ip[2], server.adr.ip[3] );
 }
 
 /*
@@ -979,9 +979,23 @@ void CMenuListHint::Draw()
 	if( m_pOwner->gameListModel.GetRows() > 0 )
 		return;
 
-	const char *text = m_pOwner->CurrentTab() == TAB_FAVORITES
-		? L( "No favorites yet" )
-		: L( "No servers found" );
+	const char *text;
+
+	switch( m_pOwner->CurrentTab() )
+	{
+	case TAB_FAVORITES:
+		text = L( "No favorites yet" );
+		break;
+	case TAB_GOLDSRC:
+		// nothing in here until a GoldSrc master is registered, and the
+		// list file is empty on a fresh install, so say so instead of
+		// leaving the user staring at an empty table
+		text = L( "No GoldSrc master yet - add one below" );
+		break;
+	default:
+		text = L( "No servers found" );
+		break;
+	}
 
 	UI_DrawString( font, m_scPos, m_scSize, text, COLOR_HINT, m_scChSize, QM_CENTER, ETF_FORCECOL );
 }
@@ -1020,7 +1034,7 @@ void CMenuServerBrowser::_Init( void )
 	addMaster = new CMenuPicButton();
 	addMaster->SetNameAndStatus( L( "Add master" ), L( "Add a master server for the selected tab" ));
 	addMaster->SetPicture( PC_ADD_SERVER );
-	addMaster->onReleased = VoidCb( &CMenuServerBrowser::AddMaster );
+	addMaster->onReleased = addMasterBox.MakeOpenEvent();
 	AddItem( addMaster );
 
 	favoriteButton = new CMenuPicButton();
@@ -1038,6 +1052,10 @@ void CMenuServerBrowser::_Init( void )
 	tabs.bMouseToggle = true;
 	tabs.iSelectColor = uiInputFgColor;
 	tabs.iFgTextColor = uiInputFgColor - 0x00151515;
+	// measured text widths are not reliable here: the labels must not wrap
+	// inside their own cell, so the three tabs split one fixed width
+	tabs.bKeepToggleWidth = true;
+	tabs.SetSize( 420, 32 );
 	// not bound to a cvar: SetCvarValue() must not push the tab index anywhere
 	tabs.bUpdateImmediately = false;
 	SET_EVENT_MULTI( tabs.onChanged,
@@ -1048,11 +1066,25 @@ void CMenuServerBrowser::_Init( void )
 		parent->OnTabSwitch();
 	});
 
-	masterAddress.bHideInput = true;
+	masterAddress.bHideInput = false;
 	masterAddress.bAllowColorstrings = false;
 	masterAddress.bNumbersOnly = false;
-	masterAddress.szName = L( "Master" );
+	masterAddress.szName = L( "Master address" );
 	masterAddress.iMaxLength = 64;
+	masterAddress.SetRect( 188, 140, 270, 32 );
+
+	addMasterBox.SetMessage( L( "Enter the address of the master server you want to add:" ));
+	addMasterBox.SetPositiveButton( L( "GameUI_OK" ), PC_OK );
+	addMasterBox.SetNegativeButton( L( "GameUI_Cancel" ), PC_CANCEL );
+	addMasterBox.HighlightChoice( CMenuYesNoMessageBox::HIGHLIGHT_YES );
+	addMasterBox.onPositive = VoidCb( &CMenuServerBrowser::AddMaster );
+	SET_EVENT_MULTI( addMasterBox.onNegative,
+	{
+		((CMenuServerBrowser*)pSelf->Parent())->masterAddress.Clear();
+	});
+	addMasterBox.Link( this );
+	addMasterBox.Init();
+	addMasterBox.AddItem( masterAddress );
 
 	msgBox.SetMessage( L( "Join a network game will exit any current game, OK to exit?" ) );
 	msgBox.SetPositiveButton( L( "GameUI_OK" ), PC_OK );
@@ -1063,11 +1095,12 @@ void CMenuServerBrowser::_Init( void )
 	gameList.SetCharSize( QM_SMALLFONT );
 	gameList.SetupColumn( COLUMN_GOLDSRC, NULL, 32.0f, true );
 	gameList.SetupColumn( COLUMN_PASSWORD, NULL, 32.0f, true );
-	gameList.SetupColumn( COLUMN_NAME, L( "Name" ), 0.40f );
-	gameList.SetupColumn( COLUMN_MAP, L( "GameUI_Map" ), 0.25f );
-	gameList.SetupColumn( COLUMN_PLAYERS, L( "Players" ), 100.0f, true );
-	gameList.SetupColumn( COLUMN_BOTS, L( "Bots" ), 60.0f, true );
-	gameList.SetupColumn( COLUMN_PING, L( "Ping" ), 120.0f, true );
+	gameList.SetupColumn( COLUMN_NAME, L( "Name" ), 0.30f );
+	gameList.SetupColumn( COLUMN_MAP, L( "GameUI_Map" ), 0.22f );
+	gameList.SetupColumn( COLUMN_PLAYERS, L( "Players" ), 92.0f, true );
+	// wide enough for the longest dotted quad we ever print, so nothing wraps
+	gameList.SetupColumn( COLUMN_IP, L( "IP" ), 132.0f, true );
+	gameList.SetupColumn( COLUMN_PING, L( "Ping" ), 108.0f, true );
 	gameList.SetModel( &gameListModel );
 	gameList.bFramedHintText = true;
 	gameList.bAllowSorting = true;
@@ -1134,7 +1167,6 @@ void CMenuServerBrowser::_Init( void )
 	AddItem( listHint );
 	AddItem( natOrDirect );
 	AddItem( tabs );
-	AddItem( masterAddress );
 }
 
 /*
@@ -1148,11 +1180,10 @@ void CMenuServerBrowser::_VidInit()
 	{
 		banner.SetPicture( ART_BANNER_LAN );
 		createGame->szStatusText = ( L( "Create new LAN game" ) );
-natOrDirect.Hide();
+		natOrDirect.Hide();
 
 		// nothing to split and nowhere to add a master on a LAN game
 		tabs.Hide();
-		masterAddress.Hide();
 		addMaster->Hide();
 		favoriteButton->Hide();
 	}
@@ -1162,23 +1193,27 @@ natOrDirect.Hide();
 		createGame->szStatusText = ( L( "Create new Internet game" ));
 		natOrDirect.Show();
 		tabs.Show();
-		masterAddress.Show();
 		addMaster->Show();
 		favoriteButton->Show();
 	}
 
-	gameList.SetRect( 360, 230, -20, 465 );
+	// the button row hangs off the bottom edge and the table takes whatever
+	// is left: on a phone that is the difference between a usable button and
+	// one buried under the list frame. the framework is 768 units tall in
+	// layout space, which is not the same as the pixel height
+	const int tableTop = 230;
+	const int bottomRowY = size.h - 56;
+
+	gameList.SetRect( 360, tableTop, -20, bottomRowY - tableTop - UI_OUTLINE_WIDTH * 8 );
 	natOrDirect.SetCoord( -20 - natOrDirect.size.w, gameList.pos.y - UI_OUTLINE_WIDTH - natOrDirect.size.h );
 
 	// tabs sit on the same row, left of the direct/nat switch
 	tabs.SetCoord( 360, gameList.pos.y - UI_OUTLINE_WIDTH - tabs.size.h );
 
-	// master address and its button go under the server table
-	masterAddress.SetCoord( 360, gameList.pos.y + gameList.size.h + UI_OUTLINE_WIDTH * 2 );
-	addMaster->SetCoord( 360 + masterAddress.size.w + UI_OUTLINE_WIDTH * 2,
-		gameList.pos.y + gameList.size.h + UI_OUTLINE_WIDTH * 2 );
-	favoriteButton->SetCoord( -20 - favoriteButton->size.w,
-		gameList.pos.y + gameList.size.h + UI_OUTLINE_WIDTH * 2 );
+	// the master address is typed into its own dialog, so only the two
+	// buttons live under the table now
+	addMaster->SetCoord( 360, bottomRowY );
+	favoriteButton->SetCoord( -20 - favoriteButton->size.w, bottomRowY );
 
 	listHint.SetCoord( 360, gameList.pos.y + gameList.size.h / 3 );
 

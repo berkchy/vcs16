@@ -263,5 +263,11 @@ void CMenuSwitch::Draw( void )
 
 void CMenuSwitch::UpdateEditable()
 {
+	// a switch that is not bound to a cvar keeps whatever state it was set
+	// to: reading through a null cvar name would hand back whatever the
+	// engine happened to have in that slot and jump to a random tab
+	if( !m_szCvarName )
+		return;
+
 	m_iState = EngFuncs::GetCvarFloat( m_szCvarName );
 }
