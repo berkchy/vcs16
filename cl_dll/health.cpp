@@ -276,22 +276,26 @@ void CHudHealth::DrawHealthBar( float flTime )
 		y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
 		x = CrossWidth /2;
 
-		// player placement offset, in the same 640x480 space as everything
-		// else the HUD draws in
-		x = HUD_OFFSET_X( hud_health_x, x );
-		y = HUD_OFFSET_Y( hud_health_y, y );
+		// Player placement offset, in the same 640x480 space as everything else
+		// the HUD draws in. Taken out as its own pair rather than folded into
+		// x and y, because the cross and the digits are laid out from two
+		// different origins below and the number used to be placed from a
+		// fresh x, which silently dropped the offset and left the digits
+		// behind while the icon moved.
+		const int offsetX = (int)HUD_OffsetValue( hud_health_x );
+		const int offsetY = (int)HUD_OffsetValue( hud_health_y );
 
 		SPR_Set(gHUD.GetSprite(m_HUD_cross), r, g, b);
-		SPR_DrawAdditive(0, x, y, &gHUD.GetSpriteRect(m_HUD_cross));
+		SPR_DrawAdditive(0, x + offsetX, y + offsetY, &gHUD.GetSpriteRect(m_HUD_cross));
 
 		x = CrossWidth + HealthWidth / 2;
 
 		int idx = gEngfuncs.GetLocalPlayer()->index;
 
 		if( idx >= 1 && idx <= MAX_PLAYERS && g_PlayerExtraInfo[idx].sb_health > 255 )
-			x = DrawUtils::DrawHudNumber2( x, y, g_PlayerExtraInfo[idx].sb_health, r, g, b );
+			x = DrawUtils::DrawHudNumber2( x + offsetX, y + offsetY, g_PlayerExtraInfo[idx].sb_health, r, g, b );
 		else
-			x = DrawUtils::DrawHudNumber( x, y, DHN_3DIGITS | DHN_DRAWZERO, m_iHealth, r, g, b );
+			x = DrawUtils::DrawHudNumber( x + offsetX, y + offsetY, DHN_3DIGITS | DHN_DRAWZERO, m_iHealth, r, g, b );
 	}
 }
 
