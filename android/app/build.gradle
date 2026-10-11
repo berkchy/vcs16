@@ -126,11 +126,9 @@ android {
 			packaging {
 				jniLibs {
 					// useLegacyPackaging stores .so uncompressed, which is what
-					// main() keeps - the engine loads xashmenu straight out of
-					// the APK, so extractNativeLibs=false has to stay. But with
-					// the client library gone the menu is the only lib left, and
-					// deflating it takes it from 5.3 MB to 1.9 MB, which is
-					// what keeps the shell near 2 MB instead of 5.
+					// the engine needs for the libraries nexora injects into
+					// this package: they are dlopen'ed straight out of the
+					// APK, so extractNativeLibs=false has to stay.
 					useLegacyPackaging = true
 				}
 			}
@@ -142,17 +140,26 @@ android {
 					// package after download (see the patch log's
 					// "+ libclient_android_arm64.so"), so a second copy here
 					// was never loaded. Dropping it takes the APK from tens of
-					// MB to ~2 MB. The menu stays: the engine's vgui2 loader
-					// finds libxashmenu in the *client* package's lib/, and
-					// nexora does not ship one - the patch log lists it with
-					// no "+", i.e. already present in the APK.
+					// MB to ~2 MB.
+					//
+					// The menu goes for the same reason. This flavor used to
+					// build it as libxashmenu64.so and kept it on the theory
+					// that something loads it out of the client package, but
+					// the engine never asks for that name: it tries
+					// cl_dlls/libmenu_android_<arch>.so, then
+					// <gamelibdir>/libmenu_android_<arch>.so, then libmenu.so
+					// from its own library path. The xashengine log shows the
+					// first two miss and libmenu.so loading from the engine
+					// package. Nexora ships its own build of this same menu
+					// under the name the engine looks for, so the copy here
+					// was 5 MB of dead weight in every patched APK.
 					//
 					// The server side goes for the same reason: yapb and
 					// ReGameDLL_CS get pulled into the Android build graph but
 					// land in neither the APK nor nexora's Android bundle, so
 					// they were minutes of compiling for nothing. Nexora
 					// builds its own copies on the runner.
-					arguments "-DBUILD_CLIENT=OFF", "-DBUILD_SERVER=OFF"
+					arguments "-DBUILD_CLIENT=OFF", "-DBUILD_SERVER=OFF", "-DBUILD_MAINUI=OFF"
 				}
 			}
 		}
