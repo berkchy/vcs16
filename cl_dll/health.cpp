@@ -276,6 +276,11 @@ void CHudHealth::DrawHealthBar( float flTime )
 		y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
 		x = CrossWidth /2;
 
+		// player placement offset, in the same 640x480 space as everything
+		// else the HUD draws in
+		x = HUD_OFFSET_X( hud_health_x, x );
+		y = HUD_OFFSET_Y( hud_health_y, y );
+
 		SPR_Set(gHUD.GetSprite(m_HUD_cross), r, g, b);
 		SPR_DrawAdditive(0, x, y, &gHUD.GetSpriteRect(m_HUD_cross));
 

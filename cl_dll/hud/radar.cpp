@@ -296,15 +296,18 @@ int CHudRadar::Draw(float flTime)
 	int radarX = HUD_OFFSET_X( hud_radar_x, 0 );
 	int radarY = HUD_OFFSET_Y( hud_radar_y, 0 );
 
+	// SPR_Draw* takes the frame first, then x and y. Every other HUD element
+	// here passes 0 in that slot, so mixing it up silently turns a position
+	// into a sprite frame and the radar stops moving on one axis.
 	if( cl_radartype->value )
 	{
 		SPR_Set(m_hRadarOpaque.spr, 200, 200, 200);
-		SPR_DrawHoles(radarX, radarY, 0, &m_hRadarOpaque.rect);
+		SPR_DrawHoles(0, radarX, radarY, &m_hRadarOpaque.rect);
 	}
 	else
 	{
 		SPR_Set( m_hRadar.spr, 25, 75, 25 );
-		SPR_DrawAdditive( radarX, radarY, 0, &m_hRadarOpaque.rect );
+		SPR_DrawAdditive( 0, radarX, radarY, &m_hRadarOpaque.rect );
 	}
 
 	if( bUseRenderAPI )
@@ -387,12 +390,14 @@ int CHudRadar::Draw(float flTime)
 		}
 	}
 
-	DrawPlayerLocation( ( m_hRadarOpaque.rect.Height() ) + 10 );
+	// the label rides along with the widget: anchored to the dish origin, so it
+	// stays under the radar no matter where hud_radar_x/y put it
+	DrawPlayerLocation( radarX + iMaxRadius, radarY + ( m_hRadarOpaque.rect.Height() ) + 10 );
 
 	return 0;
 }
 
-void CHudRadar::DrawPlayerLocation( int y )
+void CHudRadar::DrawPlayerLocation( int centerX, int y )
 {
 	const char *szLocation = g_PlayerExtraInfo[gHUD.m_Scoreboard.m_iPlayerNum].location;
 	if( szLocation[0] )
@@ -404,10 +409,9 @@ void CHudRadar::DrawPlayerLocation( int y )
 		if( szLocalizedLocation[0] == '#' )
 			return;
 
-		int x = (m_hRadarOpaque.rect.Width()) / 2;
 		int len = DrawUtils::ConsoleStringLen( szLocalizedLocation );
 
-		x = x - len / 2;
+		int x = centerX - len / 2;
 		if( x < 0 ) x = 0;
 
 		DrawUtils::SetConsoleTextColor( g_ColorGreen[0], g_ColorGreen[1], g_ColorGreen[2] );

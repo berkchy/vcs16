@@ -51,74 +51,98 @@ CStbFont::~CStbFont()
 bool CStbFont::FindFontDataFile(const char *name, int tall, int weight, int flags, char *dataFile, int dataFileChars)
 {
 #if defined(__ANDROID__)
-	const char *fontFileName, *fontFileNamePost = NULL;
+	// Android does not ship the whole Roboto family. The condensed set has
+	// Light, Italic, Bold and their italic cuts, but no Regular file: asking
+	// for it by name simply fails, and the old code answered that by falling
+	// all the way back to DroidSans. The result was a menu where the bold
+	// entries were RobotoCondensed and the regular ones DroidSans, which is
+	// exactly the "every option is a different font" look.
+	//
+	// So instead of one path and a family-wide fallback, every weight asks for
+	// its own list of acceptable files, closest first, and the first one the
+	// system actually has wins. Missing Regular then costs a slightly heavier
+	// RobotoCondensed instead of a typeface change, and a device missing
+	// BoldItalic still gets RobotoCondensed.
+	const char *candidates[6];
+	int numCandidates = 0;
 
-	// Silly code to load fonts on Android.
-	// TODO: Find a way to find fonts on Android
 	if( !strcmp( name, "Roboto" ) || !strcmp( name, "RobotoCondensed" ) )
 	{
-		fontFileName = name;
 		if( weight > 500 )
 		{
 			if( flags & FONT_ITALIC )
-				fontFileNamePost = "BoldItalic";
+			{
+				candidates[numCandidates++] = "BoldItalic";
+				candidates[numCandidates++] = "Italic";
+				candidates[numCandidates++] = "Bold";
+			}
 			else
-				fontFileNamePost = "Bold";
+			{
+				candidates[numCandidates++] = "Bold";
+				candidates[numCandidates++] = "Black";
+				candidates[numCandidates++] = "Regular";
+			}
 		}
 		else if( weight < 400 )
 		{
 			if( flags & FONT_ITALIC )
-				fontFileNamePost = "LightItalic";
-			else
-				fontFileNamePost = "Light";
-		}
-		else
-		{
-			if( flags & FONT_ITALIC )
-				fontFileNamePost = "Italic";
-			else
-				fontFileNamePost = "Regular";
-		}
-	}
-	else // DroidSans
-	{
-		fontFileName = "DroidSans";
-		if( weight > 500 )
-			fontFileNamePost = "Bold";
-	}
-
-	if( fontFileNamePost )
-		snprintf( dataFile, dataFileChars, "/system/fonts/%s-%s.ttf", fontFileName, fontFileNamePost );
-	else
-		snprintf( dataFile, dataFileChars, "/system/fonts/%s.ttf", fontFileName );
-
-	if( access( dataFile, R_OK ) != 0 )
-	{
-		fontFileNamePost = NULL;
-		// fallback to droid sans, if requested font is not droid sans
-		if( strcmp( name, "DroidSans" ) )
-		{
-			fontFileName = "DroidSans";
-			if( weight > 500 )
-				fontFileNamePost = "Bold";
-
-			if( fontFileNamePost )
-				snprintf( dataFile, dataFileChars, "/system/fonts/%s-%s.ttf", fontFileName, fontFileNamePost );
-			else
-				snprintf( dataFile, dataFileChars, "/system/fonts/%s.ttf", fontFileName );
-
-			if( access( dataFile, R_OK ) != 0 )
 			{
-				return false; // can't even fallback to droid sans
+				candidates[numCandidates++] = "LightItalic";
+				candidates[numCandidates++] = "Italic";
+				candidates[numCandidates++] = "ThinItalic";
+			}
+			else
+			{
+				candidates[numCandidates++] = "Light";
+				candidates[numCandidates++] = "Thin";
+				candidates[numCandidates++] = "Regular";
 			}
 		}
 		else
 		{
-			return false; // can't even fallback to droid sans
+			if( flags & FONT_ITALIC )
+			{
+				candidates[numCandidates++] = "Italic";
+				candidates[numCandidates++] = "LightItalic";
+				candidates[numCandidates++] = "BoldItalic";
+			}
+			else
+			{
+				// the file Android does not ship, so the ones it does come first
+				candidates[numCandidates++] = "Medium";
+				candidates[numCandidates++] = "Regular";
+				candidates[numCandidates++] = "";
+				candidates[numCandidates++] = "Light";
+				candidates[numCandidates++] = "Bold";
+			}
 		}
+
+		// the requested family first, the plain Roboto as the last resort
+		for( int i = 0; i < numCandidates; i++ )
+		{
+			if( candidates[i][0] )
+				snprintf( dataFile, dataFileChars, "/system/fonts/%s-%s.ttf", name, candidates[i] );
+			else
+				snprintf( dataFile, dataFileChars, "/system/fonts/%s.ttf", name );
+
+			if( access( dataFile, R_OK ) == 0 )
+				return true;
+		}
+
+		snprintf( dataFile, dataFileChars, "/system/fonts/Roboto-Regular.ttf" );
+		if( access( dataFile, R_OK ) == 0 )
+			return true;
+
+		snprintf( dataFile, dataFileChars, "/system/fonts/Roboto.ttf" );
+		if( access( dataFile, R_OK ) == 0 )
+			return true;
+
+		return false;
 	}
 
-	return true;
+	// DroidSans
+	snprintf( dataFile, dataFileChars, "/system/fonts/DroidSans%s.ttf", weight > 500 ? "-Bold" : "" );
+	return access( dataFile, R_OK ) == 0;
 #elif defined __linux__ // call fontconfig
 	char cmd[256];
 	int len = 0;

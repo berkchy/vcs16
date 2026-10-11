@@ -113,6 +113,11 @@ int CHudBattery::Draw( float flTime )
 	y = ScreenHeight - gHUD.m_iFontHeight - gHUD.m_iFontHeight / 2;
 	x = ScreenWidth / 5;
 
+	// player placement offset, in the same 640x480 space as everything else
+	// the HUD draws in
+	x = HUD_OFFSET_X( hud_armor_x, x );
+	y = HUD_OFFSET_Y( hud_armor_y, y );
+
 	// make sure we have the right sprite handles
 	SPR_Set( m_hFull[m_enArmorType].spr, r, g, b );
 	SPR_DrawAdditive( 0, x, y, &m_hFull[m_enArmorType].rect );

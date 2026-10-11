@@ -31,7 +31,13 @@ GNU General Public License for more details.
 
 #if defined __ANDROID__ || defined CS16CLIENT
 #define DEFAULT_MENUFONT "RobotoCondensed"
-#define DEFAULT_CONFONT  "DroidSans"
+// One family for the whole ui. The console font was DroidSans next to the
+// menu face above, so the status line and every other DrawConsoleString
+// caller rendered in a second typeface while the rest of the screen was
+// RobotoCondensed - the "each option is a different font" look. Weight 500
+// still asks for the regular weight, so the console text is lighter than
+// the menu text without being a different face.
+#define DEFAULT_CONFONT  "RobotoCondensed"
 #define DEFAULT_WEIGHT   1000
 #else
 #define DEFAULT_MENUFONT "Trebuchet MS"
