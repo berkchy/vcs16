@@ -60,6 +60,18 @@ dll built here still loads into an older engine APK: that engine simply does
 not know the name and hands back NULL.
 ========================
 */
+// Loads the VGUI2 client library through the engine, for VGUI/vgui2_loader.cpp.
+// The engine's COM_LoadLibrary searches the game's filesystem; a dlopen from
+// the client only searches the process linker path. Returns the handle, which
+// the loader then takes symbols out of with dlsym.
+void *VGui2EngineLoadLibrary( void )
+{
+	if( !gMobileAPI.pfnGetNativeObject )
+		return NULL;
+
+	return gMobileAPI.pfnGetNativeObject( "VGui2ClientLibrary" );
+}
+
 static engine_motdapi_t *MOTD_Lookup( void )
 {
 	void *object = NULL;
@@ -533,6 +545,8 @@ int DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi )
 			vgui2Factory = gMobileAPI.pfnGetNativeObject( "VGui2Factory" );
 		VGUI2_SetEngineFactory( vgui2Factory );
 	}
+
+
 
 	// Same idea for the platform HTML MOTD. An engine without "MOTDAPI" just
 	// leaves g_pMOTDAPI NULL and every MOTD is drawn by the HUD renderer.

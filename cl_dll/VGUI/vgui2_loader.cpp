@@ -68,12 +68,36 @@ static void VGUI2_Log( const char *fmt, ... )
 // is found; so is one the updater puts there.
 static void *VGUI2_OpenLibrary( const char *name )
 {
-	void *handle = VGUI2_DLOPEN( name );
+	// Ask the engine first. COM_LoadLibrary searches the game's filesystem
+	// as well as the process linker path, and pfnGetGameDirectory hands out
+	// a relative path ("cstrike") that dlopen resolves against the process
+	// directory - which is not the game's parent, so spelling it out here
+	// never worked. The engine knows where the game actually is.
+	// Ask the engine first, through cdll_int.cpp which is the only place
+	// holding the mobility API. COM_LoadLibrary searches the game's
+	// filesystem as well as the process linker path, and the game directory
+	// this client is told is relative ("cstrike") - dlopen would resolve
+	// that against the process directory, which is not the game's parent.
+	extern void *VGui2EngineLoadLibrary( void );
+
+	void *handle = VGui2EngineLoadLibrary();
+	if( handle )
+	{
+		VGUI2_Log( "VGUI2: %s loaded by the engine\n", name );
+		return handle;
+	}
+	if( handle )
+		return handle;
+
+	handle = VGUI2_DLOPEN( name );
 	if( handle )
 		return handle;
 
 	const char *gameDir = gEngfuncs.pfnGetGameDirectory ? gEngfuncs.pfnGetGameDirectory() : NULL;
-	if( !gameDir || !*gameDir )
+
+	// Only an absolute path is worth trying by hand. A relative one has
+	// already been tried by the loader above, against the wrong root.
+	if( !gameDir || gameDir[0] != '/' )
 		return NULL;
 
 	char path[512];
