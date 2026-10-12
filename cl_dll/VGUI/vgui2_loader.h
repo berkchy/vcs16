@@ -35,10 +35,30 @@ const vgui2_bridge_t *VGUI2_Get( void );
 // A NULL factory, or a missing library, simply disables the scoreboard.
 void VGUI2_SetEngineFactory( void *factory );
 
+// Print once. The scoreboard asks every frame, and a line per frame is how
+// the log used to lose the one line that mattered.
+void VGUI2_LogOnce( const char *message );
+
+// Exported for the inline helpers above, which decide what to report and
+// cannot reach a static.
+void VGUI2_Log( const char *fmt, ... );
+
 static inline int VGUI2_IsAvailable( void )
 {
 	const vgui2_bridge_t *b = VGUI2_Get();
-	return ( b && b->pfnIsAvailable() ) ? 1 : 0;
+
+	if( !b )
+	{
+		VGUI2_LogOnce( "VGUI2: not available, the text scoreboard is in charge\n" );
+		return 0;
+	}
+
+	const int available = b->pfnIsAvailable() ? 1 : 0;
+	VGUI2_LogOnce( available
+		? "VGUI2: the panel library came up\n"
+		: "VGUI2: the panel library refused to start, text scoreboard stays\n" );
+
+	return available;
 }
 
 static inline void VGUI2_ShowBoard( const csb_board_t *board )

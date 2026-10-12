@@ -20,7 +20,7 @@
 #include "wrect.h"
 #include "cl_dll.h"
 
-static void VGUI2_Log( const char *fmt, ... )
+void VGUI2_Log( const char *fmt, ... )
 {
 	char message[512];
 	va_list args;
@@ -116,6 +116,16 @@ static void *VGUI2_OpenLibrary( const char *name )
 
 static vgui2_bridge_t bridge;
 static int tried;
+static int logged;
+
+void VGUI2_LogOnce( const char *message )
+{
+	if( logged )
+		return;
+
+	logged = 1;
+	VGUI2_Log( "%s", message );
+}
 
 const vgui2_bridge_t *VGUI2_Get( void )
 {
@@ -162,7 +172,13 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	// with no other symptom.
 	extern void *VGui2EngineFactory( void );
 
-	bridge.pfnSetEngineFactory( VGui2EngineFactory() );
+	void *factory = VGui2EngineFactory();
+	bridge.pfnSetEngineFactory( factory );
+
+	// Which loader is this, and did the engine have a factory to give. Both
+	// answers used to have to be inferred: a silent loader and a silent
+	// library look the same from the outside.
+	VGUI2_Log( "VGUI2: loader 2, engine factory %s\n", factory ? "handed over" : "MISSING" );
 
 	// The handle is intentionally leaked: the panel keeps calling into the
 	// library until the process exits.
