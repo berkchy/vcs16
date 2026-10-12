@@ -18,7 +18,6 @@
 // in the engine headers that name wrect_t without including it themselves.
 #include "wrect.h"
 #include "cl_dll.h"
-#include "cdll_int.h"   // RecEnghudGetGameDir()
 
 static void VGUI2_Log( const char *fmt, ... )
 {
@@ -73,7 +72,7 @@ static void *VGUI2_OpenLibrary( const char *name )
 	if( handle )
 		return handle;
 
-	const char *gameDir = RecEnghudGetGameDir();
+	const char *gameDir = gEngfuncs.pfnGetGameDirectory ? gEngfuncs.pfnGetGameDirectory() : NULL;
 	if( !gameDir || !*gameDir )
 		return NULL;
 
@@ -109,7 +108,7 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	if( !handle )
 	{
 		VGUI2_Log( "VGUI2: %s not present in the APK or in %s, keeping the text scoreboard\n",
-			VGUI2_LIBNAME, RecEnghudGetGameDir() ? RecEnghudGetGameDir() : "(no game dir)" );
+			VGUI2_LIBNAME, gEngfuncs.pfnGetGameDirectory ? gEngfuncs.pfnGetGameDirectory() : "(no game dir)" );
 		return NULL;
 	}
 
