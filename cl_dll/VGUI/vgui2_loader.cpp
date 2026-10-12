@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
+
 // The load result has to be visible in engine.log, and on Android stderr goes
 // to logcat where nobody is looking. The engine console is always there by the
 // time this runs: VGUI2_SetEngineFactory() is called from Initialize().
@@ -15,6 +18,7 @@
 // in the engine headers that name wrect_t without including it themselves.
 #include "wrect.h"
 #include "cl_dll.h"
+#include "cdll_int.h"   // RecEnghudGetGameDir()
 
 static void VGUI2_Log( const char *fmt, ... )
 {
@@ -54,6 +58,38 @@ static void VGUI2_Log( const char *fmt, ... )
 #define VGUI2_LIBNAME			NULL
 #endif
 
+// Where the library can be, in the order worth trying.
+//
+// The plain name only finds the library when it is inside the APK, and this
+// one is built as a separate target that nothing repacks into the game APK -
+// it ships in the patcher's runtime lib directory, which is on no loader's
+// search path. The engine's own loader searches the game's filesystem, but
+// the client dll has no Sys_LoadLibrary in its engine table to call, so the
+// game directory is spelled out here. A library dropped next to cstrike.exe
+// is found; so is one the updater puts there.
+static void *VGUI2_OpenLibrary( const char *name )
+{
+	void *handle = VGUI2_DLOPEN( name );
+	if( handle )
+		return handle;
+
+	const char *gameDir = RecEnghudGetGameDir();
+	if( !gameDir || !*gameDir )
+		return NULL;
+
+	char path[512];
+	snprintf( path, sizeof( path ), "%s/%s", gameDir, name );
+
+	handle = VGUI2_DLOPEN( path );
+	if( handle )
+	{
+		VGUI2_Log( "VGUI2: loaded %s from the game directory\n", path );
+		return handle;
+	}
+
+	return NULL;
+}
+
 static vgui2_bridge_t bridge;
 static int tried;
 
@@ -68,11 +104,12 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	tried = 1;
 
 #ifdef VGUI2_LIBNAME
-	handle = VGUI2_DLOPEN( VGUI2_LIBNAME );
+	handle = VGUI2_OpenLibrary( VGUI2_LIBNAME );
 
 	if( !handle )
 	{
-		VGUI2_Log( "VGUI2: %s not present, keeping the text scoreboard\n", VGUI2_LIBNAME );
+		VGUI2_Log( "VGUI2: %s not present in the APK or in %s, keeping the text scoreboard\n",
+			VGUI2_LIBNAME, RecEnghudGetGameDir() ? RecEnghudGetGameDir() : "(no game dir)" );
 		return NULL;
 	}
 
