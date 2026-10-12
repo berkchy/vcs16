@@ -13,7 +13,8 @@
 
 // The load result has to be visible in engine.log, and on Android stderr goes
 // to logcat where nobody is looking. The engine console is always there by the
-// time this runs: VGUI2_SetEngineFactory() is called from Initialize().
+// The engine factory is handed over inside VGUI2_Get(), right after the
+// library is loaded - see the comment there.
 // wrect.h first, for the same reason hud.h orders it that way: cl_dll.h pulls
 // in the engine headers that name wrect_t without including it themselves.
 #include "wrect.h"
@@ -138,6 +139,7 @@ const vgui2_bridge_t *VGUI2_Get( void )
 
 	bridge.pfnSetEngineFactory = (void (*)( void * ))VGUI2_DLSYM( handle, "CSB_SetEngineFactory" );
 	bridge.pfnIsAvailable = (int (*)( void ))VGUI2_DLSYM( handle, "CSB_IsAvailable" );
+
 	bridge.pfnShowBoard = (void (*)( const csb_board_t * ))VGUI2_DLSYM( handle, "CSB_ShowBoard" );
 	bridge.pfnHideBoard = (void (*)( void ))VGUI2_DLSYM( handle, "CSB_HideBoard" );
 
@@ -151,6 +153,17 @@ const vgui2_bridge_t *VGUI2_Get( void )
 		return NULL;
 	}
 
+	// Hand the engine's VGUI2 factory over now, not at DLL_Init.
+
+	// The library is loaded here, on first use, which is long after
+	// DLL_Init ran. Handing the factory over there was the only time this
+	// was done, so the library was left holding NULL - it stops at
+	// "FAIL no engine factory" the first time the scoreboard is asked for,
+	// with no other symptom.
+	extern void *VGui2EngineFactory( void );
+
+	bridge.pfnSetEngineFactory( VGui2EngineFactory() );
+
 	// The handle is intentionally leaked: the panel keeps calling into the
 	// library until the process exits.
 	VGUI2_Log( "VGUI2: scoreboard bridge loaded from %s\n", VGUI2_LIBNAME );
@@ -160,6 +173,9 @@ const vgui2_bridge_t *VGUI2_Get( void )
 #endif
 }
 
+// Kept for a caller that wants to hand over a factory of its own. The engine
+// one is fetched at load time in VGUI2_Get(), which is the only time the
+// library exists.
 extern "C" void VGUI2_SetEngineFactory( void *factory )
 {
 	const vgui2_bridge_t *b = VGUI2_Get();

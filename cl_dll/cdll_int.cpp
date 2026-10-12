@@ -64,6 +64,17 @@ not know the name and hands back NULL.
 // The engine's COM_LoadLibrary searches the game's filesystem; a dlopen from
 // the client only searches the process linker path. Returns the handle, which
 // the loader then takes symbols out of with dlsym.
+// The engine's VGUI2 factory, for VGUI/vgui2_loader.cpp to hand to the
+// library the moment it loads it. Same native object the library was written
+// against: it resolves thirteen interfaces through it in tier2.cpp.
+void *VGui2EngineFactory( void )
+{
+	if( !gMobileAPI.pfnGetNativeObject )
+		return NULL;
+
+	return gMobileAPI.pfnGetNativeObject( "VGui2Factory" );
+}
+
 void *VGui2EngineLoadLibrary( void )
 {
 	if( !gMobileAPI.pfnGetNativeObject )
@@ -536,15 +547,6 @@ int DLLEXPORT HUD_MobilityInterface( mobile_engfuncs_t *mobileapi )
 
 	g_iMobileAPIVersion = MOBILITY_API_VERSION;
 	gMobileAPI = *mobileapi;
-
-	// Hand the engine's VGUI2 factory to the scoreboard bridge (if the
-	// engine provides one). NULL is fine: the text HUD stays in that case.
-	{
-		void *vgui2Factory = NULL;
-		if( gMobileAPI.pfnGetNativeObject )
-			vgui2Factory = gMobileAPI.pfnGetNativeObject( "VGui2Factory" );
-		VGUI2_SetEngineFactory( vgui2Factory );
-	}
 
 
 
