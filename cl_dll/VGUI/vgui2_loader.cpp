@@ -147,7 +147,7 @@ const vgui2_bridge_t *VGUI2_Get( void )
 		return NULL;
 	}
 
-	bridge.pfnSetEngineFactory = (void (*)( void * ))VGUI2_DLSYM( handle, "CSB_SetEngineFactory" );
+	bridge.pfnSetEngineFactory = (void (*)( void *, void (*)( const char *, ... ) ))VGUI2_DLSYM( handle, "CSB_SetEngineFactory" );
 	bridge.pfnIsAvailable = (int (*)( void ))VGUI2_DLSYM( handle, "CSB_IsAvailable" );
 
 	bridge.pfnShowBoard = (void (*)( const csb_board_t * ))VGUI2_DLSYM( handle, "CSB_ShowBoard" );
@@ -176,8 +176,10 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	// with no other symptom.
 	extern void *VGui2EngineFactory( void );
 
+	// VGUI2_Log has exactly the variadic signature the library wants, and it
+	// already writes to both the engine console and stderr.
 	void *factory = VGui2EngineFactory();
-	bridge.pfnSetEngineFactory( factory );
+	bridge.pfnSetEngineFactory( factory, VGUI2_Log );
 
 	// Which loader is this, and did the engine have a factory to give. Both
 	// answers used to have to be inferred: a silent loader and a silent
@@ -209,5 +211,5 @@ extern "C" void VGUI2_SetEngineFactory( void *factory )
 	const vgui2_bridge_t *b = VGUI2_Get();
 
 	if( b )
-		b->pfnSetEngineFactory( factory );
+		b->pfnSetEngineFactory( factory, VGUI2_Log );
 }

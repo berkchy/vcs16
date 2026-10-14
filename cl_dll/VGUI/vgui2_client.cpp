@@ -5,6 +5,7 @@
 // here includes game headers, so there are no UTL clashes with the
 // client's own miniutl copy.
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 
@@ -80,11 +81,39 @@ static bool s_vgui2tried = false;
 static vgui2::HScheme s_csScheme = 0;
 static void *s_engineFactory = NULL;
 
-extern "C" CSB_API void CSB_SetEngineFactory( void *factory )
+// The engine's Con_Printf, handed over with the factory. Everything this
+// bootstrap has to say used to go to stderr, which on Android ends up in
+// logcat and nowhere else - so the one file that explains why VGUI2 is not
+// coming up printed into a place nobody reads, and the symptom was a score-
+// board that stayed text with no reason given anywhere.
+static void ( *s_conPrintf )( const char *fmt, ... ) = NULL;
+
+// VGUI2_Log prints through the engine console when we have it, and keeps the
+// stderr copy so a logcat capture still shows something.
+static void Vgui2Log( const char *fmt, ... )
+{
+	char message[512];
+	va_list args;
+
+	va_start( args, fmt );
+	vsnprintf( message, sizeof( message ), fmt, args );
+	va_end( args );
+
+	if( s_conPrintf )
+		s_conPrintf( "%s", message );
+	else
+		fprintf( stderr, "%s", message );
+}
+
+extern "C" CSB_API void CSB_SetEngineFactory( void *factory, void ( *pfnConPrintf )( const char *fmt, ... ) )
 {
 	if ( !s_engineFactory )
 		s_engineFactory = factory;
-	fprintf( stderr, "VGUI2-CS: CSB_SetEngineFactory called, factory=%p\n", factory );
+
+	if ( !s_conPrintf )
+		s_conPrintf = pfnConPrintf;
+
+	Vgui2Log( "VGUI2-CS: CSB_SetEngineFactory called, factory=%p\n", factory );
 }
 
 static void CS_EnsureVGui2()
@@ -95,7 +124,7 @@ static void CS_EnsureVGui2()
 
 	if ( !s_engineFactory )
 	{
-		fprintf( stderr, "VGUI2-CS: FAIL no engine factory\n" );
+		Vgui2Log( "VGUI2-CS: FAIL no engine factory\n" );
 		return;
 	}
 
@@ -103,27 +132,29 @@ static void CS_EnsureVGui2()
 	CreateInterfaceFn facts[1] = { engineFactory };
 
 	ConnectTier1Libraries( facts, 1 );
-	fprintf( stderr, "VGUI2-CS: ConnectTier1 done\n" );
+	Vgui2Log( "VGUI2-CS: ConnectTier1 done\n" );
 	if ( !KV_InitKeyValuesSystem( facts, 1 ))
 	{
-		fprintf( stderr, "VGUI2-CS: FAIL KV_InitKeyValuesSystem\n" );
+		Vgui2Log( "VGUI2-CS: FAIL KV_InitKeyValuesSystem\n" );
 		return;
 	}
-	fprintf( stderr, "VGUI2-CS: KV_InitKeyValues done\n" );
+	Vgui2Log( "VGUI2-CS: KV_InitKeyValues done\n" );
 	ConnectTier2Libraries( facts, 1 );
-	fprintf( stderr, "VGUI2-CS: ConnectTier2 done\n" );
+	Vgui2Log( "VGUI2-CS: ConnectTier2 done\n" );
 
 	if ( !g_pVGui || !g_pVGuiPanel || !g_pVGuiSurface || !g_pVGuiSchemeManager ||
 	     !g_pVGuiInput || !g_pVGuiSystem || !g_pVGuiLocalize )
 	{
-		fprintf( stderr, "VGUI2-CS: FAIL missing interface g_pVGui=%p g_pVGuiPanel=%p g_pVGuiSurface=%p\n",
-			(void*)g_pVGui, (void*)g_pVGuiPanel, (void*)g_pVGuiSurface );
+		Vgui2Log( "VGUI2-CS: FAIL missing interface g_pVGui=%p g_pVGuiPanel=%p g_pVGuiSurface=%p "
+			"g_pVGuiSchemeManager=%p g_pVGuiInput=%p g_pVGuiSystem=%p g_pVGuiLocalize=%p\n",
+			(void*)g_pVGui, (void*)g_pVGuiPanel, (void*)g_pVGuiSurface, (void*)g_pVGuiSchemeManager,
+			(void*)g_pVGuiInput, (void*)g_pVGuiSystem, (void*)g_pVGuiLocalize );
 		return;
 	}
-	fprintf( stderr, "VGUI2-CS: all interfaces present\n" );
+	Vgui2Log( "VGUI2-CS: all interfaces present\n" );
 	if ( !vgui2::VGui_InitInterfacesList( "CLIENT", facts, 1 ))
 	{
-		fprintf( stderr, "VGUI2-CS: FAIL VGui_InitInterfacesList\n" );
+		Vgui2Log( "VGUI2-CS: FAIL VGui_InitInterfacesList\n" );
 		return;
 	}
 
@@ -137,7 +168,7 @@ static void CS_EnsureVGui2()
 
 	g_pVGui->Start();
 	s_vgui2ready = true;
-	fprintf( stderr, "VGUI2-CS: READY\n" );
+	Vgui2Log( "VGUI2-CS: READY\n" );
 }
 
 extern "C" int CS_VGui2Available()

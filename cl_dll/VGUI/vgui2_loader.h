@@ -20,7 +20,7 @@ extern "C" {
 // The bridge as resolved from libvgui2client.so.
 typedef struct vgui2_bridge_s
 {
-	void	(*pfnSetEngineFactory)( void *factory );
+	void	(*pfnSetEngineFactory)( void *factory, void ( *pfnConPrintf )( const char *fmt, ... ) );
 	int		(*pfnIsAvailable)( void );
 	void	(*pfnShowBoard)( const csb_board_t *board );
 	void	(*pfnHideBoard)( void );

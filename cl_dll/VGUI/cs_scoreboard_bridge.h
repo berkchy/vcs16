@@ -78,7 +78,15 @@ extern "C" {
 // DT_NEEDED entry that cannot be satisfied makes the whole client dll fail to
 // load. An APK that predates the scoreboard simply has no libvgui2client.so,
 // and the client must keep running with the text HUD (see vgui2_loader.h).
-CSB_API void CSB_SetEngineFactory( void *factory );
+// Hand over the engine's VGUI2 CreateInterface, and its Con_Printf.
+//
+// The Con_Printf comes along because this library has no engine function
+// table of its own - that is the whole reason it is a separate .so. Without
+// it the only thing its diagnostics could reach was stderr, which on Android
+// goes to logcat, so every line this bootstrap printed was invisible in
+// engine.log. Passed as a plain variadic function rather than the engine's
+// APIProxy type so this header stays dependency-free.
+CSB_API void CSB_SetEngineFactory( void *factory, void ( *pfnConPrintf )( const char *fmt, ... ) );
 
 // True when the VGUI2 scoreboard can be used (library loaded and the engine
 // handed us a factory). Cheap; may be called every frame.
