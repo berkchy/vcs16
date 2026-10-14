@@ -2,6 +2,7 @@
 #define GAME_CLIENT_KEYVALUESCOMPAT_H
 
 #include "interface.h"
+#include "vstdlib/IKeyValuesSystem.h" // HKeySymbol
 
 // This is the VGUI2 version of the IKeyValuesSystem interface. It has
 // additional methods that make it incompatible. - Solokiller
