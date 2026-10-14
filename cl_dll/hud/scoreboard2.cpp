@@ -253,6 +253,12 @@ int CHudScoreboard2 :: Init( void )
 	int r2 = gEngfuncs.pfnAddCommand( "-showscores2", __HideScores2 );
 	gEngfuncs.Con_Printf( "Scoreboard2: pfnAddCommand +showscores2=%d -showscores2=%d\n", r1, r2 );
 
+	// The library is loaded on the first scoreboard, not here, so a client dll
+	// built before the scoreboard existed logged nothing at all until someone
+	// pressed TAB - and a log with no VGUI2 line in it cannot tell "old build"
+	// apart from "not asked yet". This one line does.
+	gEngfuncs.Con_Printf( "Scoreboard2: VGUI2 bridge built in, libvgui2client loads on first use\n" );
+
 	// Touch system calls these without +/- prefix
 	gEngfuncs.pfnAddCommand( "showscoreboard2", __ShowScores2 );
 	gEngfuncs.pfnAddCommand( "hidescoreboard2", __HideScores2 );
