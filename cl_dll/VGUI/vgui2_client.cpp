@@ -133,12 +133,16 @@ static void CS_EnsureVGui2()
 
 	ConnectTier1Libraries( facts, 1 );
 	Vgui2Log( "VGUI2-CS: ConnectTier1 done\n" );
+
+	// The return value says which KeyValues implementation got picked, not
+	// whether it worked: the engine factory has no KeyValues003 to hand over,
+	// so this is always false here and the self-contained fallback in
+	// KeyValuesCompat.cpp is always the one in use. Treating it as a failure
+	// stopped the bootstrap on the first call and left the scoreboard text
+	// for good.
 	if ( !KV_InitKeyValuesSystem( facts, 1 ))
-	{
-		Vgui2Log( "VGUI2-CS: FAIL KV_InitKeyValuesSystem\n" );
-		return;
-	}
-	Vgui2Log( "VGUI2-CS: KV_InitKeyValues done\n" );
+		Vgui2Log( "VGUI2-CS: no engine KeyValues003, using the built-in one\n" );
+
 	ConnectTier2Libraries( facts, 1 );
 	Vgui2Log( "VGUI2-CS: ConnectTier2 done\n" );
 
