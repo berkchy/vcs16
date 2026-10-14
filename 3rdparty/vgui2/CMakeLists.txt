@@ -80,6 +80,12 @@ target_include_directories(vgui2client PRIVATE
 	${CMAKE_CURRENT_SOURCE_DIR}/../../engine
 )
 
+# tier2 sources, for KeyValuesCompat.h. The bootstrap answers "KeyValues003"
+# from a CreateInterfaceFn of its own and has to name the type it hands over.
+target_include_directories(vgui2client PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/src/tier2
+)
+
 set_target_properties(vgui2client PROPERTIES
 	CXX_STANDARD 11
 	POSITION_INDEPENDENT_CODE ON

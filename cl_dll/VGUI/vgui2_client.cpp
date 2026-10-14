@@ -25,8 +25,37 @@
 
 #include "cs_scoreboard_bridge.h" // CSB_API export macro
 
-// KeyValues system lives in tier2 sources, header is not public.
-bool KV_InitKeyValuesSystem( CreateInterfaceFn *factories, int n );
+// The KeyValues system and the interface it hands out live in tier2 sources.
+// ConnectTier2Libraries aborts when no factory supplies a KeyValues003, and
+// the engine's does not, so the bootstrap supplies one itself.
+#include "KeyValuesCompat.h"
+
+// A CreateInterfaceFn of our own, answering only KeyValues003.
+//
+// ConnectTier2Libraries reads KV_InitKeyValuesSystem returning false as fatal:
+// it calls Error(), which aborts, and the game dies in the first frame that
+// asks for a scoreboard. The return is not a failure report at all - it says
+// no factory supplied a KeyValues003 - and the engine's VGUI2 factory does
+// not supply one, so the answer was always false. Passing the built-in
+// implementation as a second factory keeps tier2 on the path it expects,
+// using the same object the fallback branch would have installed anyway.
+//
+// Mirrors the engine's VGui2_CreateInterface: a name it does not know comes
+// back NULL with a non-zero code, and the `if (!g_pX)` guards in tier2 make
+// sure a NULL from here never overwrites what the engine already answered.
+static void *CS_KeyValuesFactory( const char *name, int *returnCode )
+{
+	if ( returnCode )
+		*returnCode = 0;
+
+	if ( name && !Q_strcmp( name, IKEYVALUES_INTERFACE_VERSION ) )
+		return KV_GetBuiltInKeyValues();
+
+	if ( returnCode )
+		*returnCode = 1;
+
+	return NULL;
+}
 
 // Extra engine-side interface: load schemes from memory buffers.
 // Mirrors engine/client/vgui/vgui2/vgui2_scheme.cpp.
@@ -129,21 +158,20 @@ static void CS_EnsureVGui2()
 	}
 
 	CreateInterfaceFn engineFactory = (CreateInterfaceFn)s_engineFactory;
-	CreateInterfaceFn facts[1] = { engineFactory };
 
-	ConnectTier1Libraries( facts, 1 );
+	// The engine first, then ours for the one interface it has no answer for.
+	CreateInterfaceFn facts[2] = { engineFactory, CS_KeyValuesFactory };
+
+	ConnectTier1Libraries( facts, 2 );
 	Vgui2Log( "VGUI2-CS: ConnectTier1 done\n" );
 
-	// The return value says which KeyValues implementation got picked, not
-	// whether it worked: the engine factory has no KeyValues003 to hand over,
-	// so this is always false here and the self-contained fallback in
-	// KeyValuesCompat.cpp is always the one in use. Treating it as a failure
-	// stopped the bootstrap on the first call and left the scoreboard text
-	// for good.
-	if ( !KV_InitKeyValuesSystem( facts, 1 ))
+	// Now expected to be true: CS_KeyValuesFactory answers KeyValues003. The
+	// check stays because a false here is the difference between a text
+	// scoreboard and an abort, and the line costs one frame.
+	if ( !KV_InitKeyValuesSystem( facts, 2 ))
 		Vgui2Log( "VGUI2-CS: no engine KeyValues003, using the built-in one\n" );
 
-	ConnectTier2Libraries( facts, 1 );
+	ConnectTier2Libraries( facts, 2 );
 	Vgui2Log( "VGUI2-CS: ConnectTier2 done\n" );
 
 	if ( !g_pVGui || !g_pVGuiPanel || !g_pVGuiSurface || !g_pVGuiSchemeManager ||
