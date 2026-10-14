@@ -8,6 +8,7 @@
 #define CSB_MAX_PLAYERS 32
 #define CSB_MAX_TEAMS 4
 #define CSB_NAME_LEN 64
+#define CSB_MAP_LEN 64
 
 // teamnumber values (mirror dlls/cdll_dll.h, repeated here so this header
 // stays dependency-free)
@@ -46,6 +47,18 @@ typedef struct
 	int teamplay;
 } csb_board_t;
 
+// The loading screen. There is no real progress to report - the engine's
+// loadingBar is a texture, not a number - so progress is a 0..100 guess the
+// client derives from elapsed load time, or CSB_PROGRESS_UNKNOWN to let the
+// panel sweep instead of pretending to know.
+#define CSB_PROGRESS_UNKNOWN (-1)
+
+typedef struct
+{
+	char mapName[CSB_MAP_LEN];
+	int progress;
+} csb_loading_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -76,6 +89,15 @@ CSB_API void CSB_ShowBoard( const csb_board_t *board );
 
 // Hide the panel.
 CSB_API void CSB_HideBoard( void );
+
+// The loading screen. Only ever reached through HUD_LoadingPanelDraw, which
+// the engine calls once per frame while a level loads - it does not call
+// pfnRedraw then, so there is no other moment the panel could be drawn from.
+CSB_API void CSB_ShowLoading( const csb_loading_t *info );
+
+// Take the loading screen down. Called when the load ends, and from
+// shutdown, so it has to survive a client that never brought VGUI2 up.
+CSB_API void CSB_HideLoading( void );
 
 #ifdef __cplusplus
 }

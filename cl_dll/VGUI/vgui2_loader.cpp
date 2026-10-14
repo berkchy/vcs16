@@ -153,10 +153,14 @@ const vgui2_bridge_t *VGUI2_Get( void )
 	bridge.pfnShowBoard = (void (*)( const csb_board_t * ))VGUI2_DLSYM( handle, "CSB_ShowBoard" );
 	bridge.pfnHideBoard = (void (*)( void ))VGUI2_DLSYM( handle, "CSB_HideBoard" );
 
+	bridge.pfnShowLoading = (void (*)( const csb_loading_t * ))VGUI2_DLSYM( handle, "CSB_ShowLoading" );
+	bridge.pfnHideLoading = (void (*)( void ))VGUI2_DLSYM( handle, "CSB_HideLoading" );
+
 	// Every name is required: a half-resolved bridge would crash on the call
 	// that happens to be non-NULL.
 	if( !bridge.pfnSetEngineFactory || !bridge.pfnIsAvailable ||
-		!bridge.pfnShowBoard || !bridge.pfnHideBoard )
+		!bridge.pfnShowBoard || !bridge.pfnHideBoard ||
+		!bridge.pfnShowLoading || !bridge.pfnHideLoading )
 	{
 		VGUI2_Log( "VGUI2: %s does not export the scoreboard bridge, keeping the text scoreboard\n", VGUI2_LIBNAME );
 		memset( &bridge, 0, sizeof( bridge ) );
@@ -187,6 +191,14 @@ const vgui2_bridge_t *VGUI2_Get( void )
 #else
 	return NULL;
 #endif
+}
+
+const vgui2_bridge_t *VGUI2_GetIfLoaded( void )
+{
+	if( !tried )
+		return NULL;
+
+	return bridge.pfnShowBoard ? &bridge : NULL;
 }
 
 // Kept for a caller that wants to hand over a factory of its own. The engine

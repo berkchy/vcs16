@@ -24,12 +24,19 @@ typedef struct vgui2_bridge_s
 	int		(*pfnIsAvailable)( void );
 	void	(*pfnShowBoard)( const csb_board_t *board );
 	void	(*pfnHideBoard)( void );
+	void	(*pfnShowLoading)( const csb_loading_t *info );
+	void	(*pfnHideLoading)( void );
 } vgui2_bridge_t;
 
 // Loads the library on first use. Returns NULL when it is missing, incomplete,
 // or when the platform has no dlopen (PS Vita) - callers treat that as "no
 // VGUI2 scoreboard here".
 const vgui2_bridge_t *VGUI2_Get( void );
+
+// The same bridge, but never triggers the load. For a per-frame caller that
+// only wants to tear state down: going through VGUI2_Get() would pull the
+// library in on a client that has no reason to have it yet.
+const vgui2_bridge_t *VGUI2_GetIfLoaded( void );
 
 // Hand over the engine's VGUI2 factory. Call once the engine API is ready.
 // A NULL factory, or a missing library, simply disables the scoreboard.
@@ -75,6 +82,24 @@ static inline void VGUI2_HideBoard( void )
 
 	if( b )
 		b->pfnHideBoard();
+}
+
+// The loading screen. The engine stops calling pfnRedraw while a level loads,
+// so HUD_LoadingPanelDraw is the only place this can come from.
+static inline void VGUI2_ShowLoading( const csb_loading_t *info )
+{
+	const vgui2_bridge_t *b = VGUI2_Get();
+
+	if( b )
+		b->pfnShowLoading( info );
+}
+
+static inline void VGUI2_HideLoading( void )
+{
+	const vgui2_bridge_t *b = VGUI2_GetIfLoaded();
+
+	if( b )
+		b->pfnHideLoading();
 }
 
 #ifdef __cplusplus

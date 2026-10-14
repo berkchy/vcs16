@@ -393,8 +393,47 @@ int DLLEXPORT HUD_Redraw( float time, int intermission )
 	// after HUD_Init; keep them armed until the very crash.
 	CrashHandler_Install();
 
+	// The load is over by the time the engine is running the HUD again, and
+	// it has stopped calling HUD_LoadingPanelDraw, so this is the only place
+	// left to take the loading screen down.
+	VGUI2_HideLoading();
+
 	gHUD.Redraw( time, intermission );
 
+	return 1;
+}
+
+/*
+=========================
+	HUD_LoadingPanelDraw
+
+Draw the loading screen, once per frame, while a level loads. The engine
+calls this instead of pfnRedraw there - it has no reason to run the whole
+HUD mid-load - so without it a client that wants its own screen has no
+frame to draw it from. Returns 1 when VGUI2 is up and the panel is on
+screen, which tells the engine to leave its own bar alone; 0 lets the
+classic CL_DrawLoadingOrPaused take over, which is also what every
+client without libvgui2client.so gets.
+=========================
+*/
+
+int DLLEXPORT HUD_LoadingPanelDraw( int loadingBar, const char *mapName )
+{
+	// The engine's loadingBar is a texture id, not a number, so there is no
+	// real progress to show. The panel sweeps instead of inventing one.
+	(void)loadingBar;
+
+	if( !VGUI2_IsAvailable() )
+		return 0;
+
+	csb_loading_t info;
+	memset( &info, 0, sizeof( info ) );
+	info.progress = CSB_PROGRESS_UNKNOWN;
+
+	if( mapName )
+		strncpy( info.mapName, mapName, sizeof( info.mapName ) - 1 );
+
+	VGUI2_ShowLoading( &info );
 	return 1;
 }
 

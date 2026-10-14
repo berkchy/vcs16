@@ -62,6 +62,7 @@ add_library(vgui2client SHARED
 	# the client's miniutl copies) inside one self-consistent module.
 	../../cl_dll/VGUI/vgui2_client.cpp
 	../../cl_dll/VGUI/cstrikeclientscoreboard.cpp
+	../../cl_dll/VGUI/csloadingpanel.cpp
 )
 
 target_include_directories(vgui2client PUBLIC
