@@ -211,10 +211,19 @@ bool KV_InitKeyValuesSystem( CreateInterfaceFn* pFactories, int iNumFactories )
 
 	g_pKeyValuesInterface->RegisterSizeofKeyValues( sizeof( KeyValues ) );
 
-	// Report whether an engine provided system is in use: callers that treat a
-	// missing KeyValues003 as "no VGUI2 support" must keep that behaviour, even
-	// though the fallback above keeps KeyValues usable.
-	return g_pKeyValuesInterface != &s_FallbackKeyValuesSystem;
+	// True whenever a working implementation is installed, which is now always
+	// the case by the time we get here.
+	//
+	// This used to be `g_pKeyValuesInterface != &s_FallbackKeyValuesSystem` -
+	// "did an engine hand us a KeyValues003". ConnectTier2Libraries reads false
+	// as fatal and calls Error(), which aborts, so the question it was really
+	// asking is "is there a KeyValues to use", and the built-in one answers
+	// that. It also made the check unanswerable: a caller that supplies the
+	// built-in implementation through its own factory - which is what stops the
+	// abort, the engine having no KeyValues003 of its own - could not report
+	// success without handing over a different object for the sole purpose of
+	// failing a pointer comparison.
+	return g_pKeyValuesInterface != NULL;
 }
 
 IKeyValues *KV_GetBuiltInKeyValues( void )

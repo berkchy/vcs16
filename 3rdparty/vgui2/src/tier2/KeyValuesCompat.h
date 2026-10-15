@@ -39,9 +39,13 @@ public:
 #define IKEYVALUES_INTERFACE_VERSION "KeyValues003"
 
 /**
-*	Initializes the KeyValuesSystem accessor.
-*	@return Whether an engine-provided KeyValues003 is in use. Not a success
-*	report: see KV_GetBuiltInKeyValues.
+*	Installs a KeyValues implementation and hands the system over to it.
+*
+*	Prefers a KeyValues003 from a factory, falls back to the built-in one, so
+*	this succeeds whenever either is available.
+*	@return Whether a usable implementation is installed. ConnectTier2Libraries
+*	aborts when it is false, so it has to mean "is there a KeyValues to use" and
+*	not "did the engine provide one".
 */
 bool KV_InitKeyValuesSystem( CreateInterfaceFn* pFactories, int iNumFactories );
 

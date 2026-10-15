@@ -165,11 +165,11 @@ static void CS_EnsureVGui2()
 	ConnectTier1Libraries( facts, 2 );
 	Vgui2Log( "VGUI2-CS: ConnectTier1 done\n" );
 
-	// Now expected to be true: CS_KeyValuesFactory answers KeyValues003. The
-	// check stays because a false here is the difference between a text
-	// scoreboard and an abort, and the line costs one frame.
+	// Both factories together always leave a KeyValues installed, so a false
+	// here is something we have not thought of, not the engine's missing
+	// KeyValues003 - and tier2 is one abort away from turning it fatal.
 	if ( !KV_InitKeyValuesSystem( facts, 2 ))
-		Vgui2Log( "VGUI2-CS: no engine KeyValues003, using the built-in one\n" );
+		Vgui2Log( "VGUI2-CS: no KeyValues implementation could be installed\n" );
 
 	ConnectTier2Libraries( facts, 2 );
 	Vgui2Log( "VGUI2-CS: ConnectTier2 done\n" );
